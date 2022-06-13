@@ -16,7 +16,7 @@ func TxPeekBlobVersionedHashes(tx []byte) ([][32]byte, error) {
 		return nil, errInvalidBlobTxType
 	}
 	sbt := types.SignedBlobTx{}
-	if err := sbt.Deserialize(codec.NewDecodingReader(bytes.NewReader(tx), uint64(len(tx)))); err != nil {
+	if err := sbt.Deserialize(codec.NewDecodingReader(bytes.NewReader(tx[1:]), uint64(len(tx)-1))); err != nil {
 		return nil, err
 	}
 	hashes := make([][32]byte, len(sbt.Message.BlobVersionedHashes))
