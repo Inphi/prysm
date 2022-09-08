@@ -133,7 +133,7 @@ func BlockContainsKZGs(b interfaces.BeaconBlock) bool {
 // hashToBLSField implements hash_to_bls_field in the EIP-4844 spec, placing the computed field
 // element in r and returning error if there was a failure computing the hash.
 func hashToBLSField(r *bls.Fr, container ssz.Marshaler) error {
-	ssz, err := container.MarshalSSZ();
+	ssz, err := container.MarshalSSZ()
 	if err != nil {
 		return err
 	}
