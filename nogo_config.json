@@ -77,7 +77,8 @@
       ".*/.*mock\\.go": "Mocks are OK",
       ".*testmain\\.go$": "Fuzz",
       "proto/.*": "Generated protobuf related code",
-      "tools/analyzers/properpermissions/testdata/.*": "Analyzer breaks rules"
+      "tools/analyzers/properpermissions/testdata/.*": "Analyzer breaks rules",
+      "beacon-chain/sync/.*": "experimentation"
     }
   },
   "featureconfig": {
