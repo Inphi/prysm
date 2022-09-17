@@ -68,6 +68,7 @@ func (_ *BeaconEndpointFactory) Paths() []string {
 		"/eth/v1/validator/sync_committee_contribution",
 		"/eth/v1/validator/contribution_and_proofs",
 		"/eth/v1/validator/prepare_beacon_proposer",
+		"/eth/v1/blobs/sidecar/{block_id}",
 	}
 }
 
@@ -120,6 +121,12 @@ func (_ *BeaconEndpointFactory) Create(path string) (*apimiddleware.Endpoint, er
 	case "/eth/v1/beacon/blocks/{block_id}":
 		endpoint.GetResponse = &blockResponseJson{}
 		endpoint.CustomHandlers = []apimiddleware.CustomHandler{handleGetBeaconBlockSSZ}
+	case "/eth/v1/blobs/sidecar/{block_id}":
+		endpoint.GetResponse = &blobsSidecarResponseJson{}
+		endpoint.CustomHandlers = []apimiddleware.CustomHandler{handleGetBlobsSidecarSSZ}
+		endpoint.Hooks = apimiddleware.HookCollection{
+			OnPreDeserializeGrpcResponseBodyIntoContainer: prepareBlobsResponse,
+		}
 	case "/eth/v2/beacon/blocks/{block_id}":
 		endpoint.GetResponse = &blockV2ResponseJson{}
 		endpoint.Hooks = apimiddleware.HookCollection{
