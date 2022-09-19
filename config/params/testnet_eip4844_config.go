@@ -6,7 +6,8 @@ func UseEIP4844NetworkConfig() {
 	cfg.MinEpochsForBlobsSidecarsRequest = 1200 // 1 day
 	cfg.ContractDeploymentBlock = 0             // deposit contract is a predeploy
 	cfg.BootstrapNodes = []string{
-		"enr:-MK4QLij8YaVQ6fIi09rDuD9fufxBlCZRXwfM1q6SbNJfy5ZZdAvtlnsfqhIeI0IqeOZdaPExVCfZfR4JJTIuKXFR76GAYJGrqHnh2F0dG5ldHOIAAAAAAAAAACEZXRoMpBCynldgwAP_QMAAAAAAAAAgmlkgnY0gmlwhCJ7uEyJc2VjcDI1NmsxoQJpeftU6RbmIhcFllICznlAMJXL3EwHEGhn73_Gk0wrCYhzeW5jbmV0cwCDdGNwgjLIg3VkcIIu4A",
+		"enr:-MK4QJufM5r8cVNFhiwD7HH_uodWhPwJ5kBXOk6VQkRyW67ycVqUpNcNqKeWXgMcVsH88DY_KLFtbYSQZ-dOP6-oPTKGAYLWTlbeh2F0dG5ldHOIAAAQAAAAAACEZXRoMpCcZxEogwAP_f__________gmlkgnY0gmlwhCKrodWJc2VjcDI1NmsxoQJ6hctIopprT5fDHe1xy4wWMAs6SbgsawxHw_txuUoH1YhzeW5jbmV0cw-DdGNwgjLIg3VkcIIu4A",
+		"enr:-MK4QK5TN3XjWX82YMeFZJGYROpvsnq6FKBSCLonocnQ28X5LuVevhn4Lm7sq7ZjkGnwSqQTovTlVdwdF4bgh8Z_DeKGAYLV_vBSh2F0dG5ldHOIAAAAAAAAIACEZXRoMpCcZxEogwAP_f__________gmlkgnY0gmlwhCJE_eeJc2VjcDI1NmsxoQIecO7Y9C7J2Bs7RNxXaUkU6BfmPKIhEsDScKAoxENaRYhzeW5jbmV0cw-DdGNwgjLIg3VkcIIu4A",
 		// TODO(EIP-4844): Coinbase boot node
 	}
 	OverrideBeaconNetworkConfig(cfg)
