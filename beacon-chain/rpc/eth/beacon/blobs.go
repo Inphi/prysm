@@ -21,6 +21,9 @@ func (bs *Server) GetBlobsSidecar(ctx context.Context, req *ethpbv1.BlobsRequest
 	if err != nil {
 		return nil, fmt.Errorf("failed to get blobs sidecar for block %x", root)
 	}
+	if sidecar == nil {
+		return nil, fmt.Errorf("blobs sidecar for block %x does not exist", root)
+	}
 	var blobs []*ethpbv1.Blob
 	for _, b := range sidecar.Blobs {
 		var data []byte
