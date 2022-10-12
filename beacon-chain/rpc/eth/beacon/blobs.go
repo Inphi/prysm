@@ -19,7 +19,7 @@ func (bs *Server) GetBlobsSidecar(ctx context.Context, req *ethpbv1.BlobsRequest
 	}
 	sidecar, err := bs.BeaconDB.BlobsSidecar(ctx, root)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get blobs sidecar for block %x", root)
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to get blobs sidecar for block %x", root))
 	}
 	if sidecar == nil {
 		return nil, fmt.Errorf("blobs sidecar for block %x does not exist", root)
