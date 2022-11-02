@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/forkchoice"
 	fieldparams "github.com/prysmaticlabs/prysm/v3/config/fieldparams"
 	"github.com/prysmaticlabs/prysm/v3/config/params"
@@ -75,7 +76,7 @@ func (s *Store) head(ctx context.Context) ([32]byte, error) {
 		if s.justifiedCheckpoint.Epoch == params.BeaconConfig().GenesisEpoch {
 			justifiedNode = s.treeRootNode
 		} else {
-			return [32]byte{}, errUnknownJustifiedRoot
+			return [32]byte{}, errors.WithMessage(errUnknownJustifiedRoot, fmt.Sprintf("%#x", s.justifiedCheckpoint.Root))
 		}
 	}
 
@@ -222,7 +223,7 @@ func (s *Store) prune(ctx context.Context) error {
 
 	finalizedNode, ok := s.nodeByRoot[finalizedRoot]
 	if !ok || finalizedNode == nil {
-		return errUnknownFinalizedRoot
+		return errors.WithMessage(errUnknownFinalizedRoot, fmt.Sprintf("%#x", finalizedRoot))
 	}
 	// return early if we haven't changed the finalized checkpoint
 	if finalizedNode.parent == nil {
@@ -263,6 +264,9 @@ func (s *Store) tips() ([][32]byte, []types.Slot) {
 func (f *ForkChoice) HighestReceivedBlockSlot() types.Slot {
 	f.store.nodesLock.RLock()
 	defer f.store.nodesLock.RUnlock()
+	if f.store.highestReceivedNode == nil {
+		return 0
+	}
 	return f.store.highestReceivedNode.slot
 }
 
@@ -270,6 +274,9 @@ func (f *ForkChoice) HighestReceivedBlockSlot() types.Slot {
 func (f *ForkChoice) HighestReceivedBlockRoot() [32]byte {
 	f.store.nodesLock.RLock()
 	defer f.store.nodesLock.RUnlock()
+	if f.store.highestReceivedNode == nil {
+		return [32]byte{}
+	}
 	return f.store.highestReceivedNode.root
 }
 

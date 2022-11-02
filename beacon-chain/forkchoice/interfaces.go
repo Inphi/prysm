@@ -10,9 +10,14 @@ import (
 	v1 "github.com/prysmaticlabs/prysm/v3/proto/eth/v1"
 )
 
+// DataAvailability checks block data for availability
 type DataAvailability interface {
 	IsDataAvailable(ctx context.Context, root [32]byte) error
 }
+
+// BalanceByRooter is a handler to obtain the effective balances of the state
+// with the given block root
+type BalancesByRooter func(context.Context, [32]byte) ([]uint64, error)
 
 // ForkChoicer represents the full fork choice interface composed of all the sub-interfaces.
 type ForkChoicer interface {
@@ -81,4 +86,5 @@ type Setter interface {
 	SetGenesisTime(uint64)
 	SetOriginRoot([32]byte)
 	NewSlot(context.Context, types.Slot) error
+	SetBalancesByRooter(BalancesByRooter)
 }

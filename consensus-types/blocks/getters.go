@@ -150,6 +150,18 @@ func (b *SignedBeaconBlock) PbBlindedBellatrixBlock() (*eth.SignedBlindedBeaconB
 	return pb.(*eth.SignedBlindedBeaconBlockBellatrix), nil
 }
 
+// PbCapellaBlock returns the underlying protobuf object.
+func (b *SignedBeaconBlock) PbCapellaBlock() (*eth.SignedBeaconBlockCapella, error) {
+	if b.version != version.Capella {
+		return nil, errNotSupported("PbCapellaBlock", b.version)
+	}
+	pb, err := b.Proto()
+	if err != nil {
+		return nil, err
+	}
+	return pb.(*eth.SignedBeaconBlockCapella), nil
+}
+
 // PbEip4844Block returns the underlying protobuf object.
 func (b *SignedBeaconBlock) PbEip4844Block() (*eth.SignedBeaconBlockWithBlobKZGs, error) {
 	if b.version != version.EIP4844 {

@@ -3,8 +3,8 @@ package sync
 import (
 	"context"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	kbls "github.com/protolambda/go-kzg/bls"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/altair"
@@ -26,7 +26,9 @@ import (
 
 // Gossip Validation Conditions:
 // [IGNORE] the sidecar.beacon_block_slot is for the current slot (with a MAXIMUM_GOSSIP_CLOCK_DISPARITY allowance)
-//  -- i.e. blobs_sidecar.beacon_block_slot == current_slot.
+//
+//	-- i.e. blobs_sidecar.beacon_block_slot == current_slot.
+//
 // [REJECT] the sidecar.blobs are all well formatted, i.e. the BLSFieldElement in valid range (x < BLS_MODULUS).
 // [REJECT] the beacon proposer signature, signed_blobs_sidecar.signature, is valid
 // [IGNORE] The sidecar is the first sidecar with valid signature received for the (proposer_index, sidecar.beacon_block_slot)

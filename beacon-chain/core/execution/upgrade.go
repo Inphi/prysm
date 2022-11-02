@@ -116,6 +116,8 @@ func UpgradeToEip4844(ctx context.Context, state state.BeaconState) (state.Beaco
 		return nil, err
 	}
 
+	// TODO(EIP-4844): Capella state upgrade isn't yet implemented. So we reset the withdrawals root value here.
+	// Once UpgradeToCapella is implemented and Capella preceeds 4844, use the withdrawals root in the previous beacon state
 	upgradedLatestExecutionPayloadHeader := &enginev1.ExecutionPayloadHeader4844{
 		ParentHash:       latestExecutionPayloadHeader.ParentHash(),
 		FeeRecipient:     latestExecutionPayloadHeader.FeeRecipient(),
@@ -130,6 +132,7 @@ func UpgradeToEip4844(ctx context.Context, state state.BeaconState) (state.Beaco
 		BaseFeePerGas:    latestExecutionPayloadHeader.BaseFeePerGas(),
 		BlockHash:        latestExecutionPayloadHeader.BlockHash(),
 		TransactionsRoot: latestExecutionPayloadHeader.TransactionsRoot(),
+		WithdrawalsRoot:  make([]byte, 32),
 		ExcessDataGas:    make([]byte, 32),
 	}
 

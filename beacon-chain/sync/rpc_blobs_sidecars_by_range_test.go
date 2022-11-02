@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/kevinms/leakybucket-go"
-	"github.com/libp2p/go-libp2p-core/mux"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/protocol"
 	chainMock "github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain/testing"
@@ -146,7 +145,7 @@ func TestSendRequest_SendBlobsSidecarsByRangeRequest(t *testing.T) {
 				idx := i - req.StartSlot
 				sidecar := knownSidecars[idx]
 				err := WriteBlobsSidecarChunk(stream, chain, p2pProvider.Encoding(), sidecar)
-				if err != nil && err.Error() != mux.ErrReset.Error() {
+				if err != nil && err.Error() != network.ErrReset.Error() {
 					require.NoError(t, err)
 				}
 			}

@@ -46,6 +46,13 @@ func (b *BeaconState) latestExecutionPayloadHeaderVal() (interfaces.ExecutionDat
 			return nil, err
 		}
 		return copiedHeader, nil
+	case *enginev1.ExecutionPayloadHeaderCapella:
+		headerCpy := ethpb.CopyExecutionPayloadHeaderCapella(h)
+		copiedHeader, err := blocks.NewExecutionDataHeader(headerCpy)
+		if err != nil {
+			return nil, err
+		}
+		return copiedHeader, nil
 	case *enginev1.ExecutionPayloadHeader4844:
 		headerCpy := ethpb.CopyExecutionPayloadHeader4844(h)
 		copiedHeader, err := blocks.NewExecutionDataHeader(headerCpy)

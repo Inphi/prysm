@@ -92,10 +92,12 @@ type ExecutionData interface {
 	BaseFeePerGas() []byte
 	BlockHash() []byte
 	Transactions() ([][]byte, error)
+	Withdrawals() ([]*enginev1.Withdrawal, error)
 	ExcessDataGas() ([]byte, error)
 
 	Version() int
 	PbGenericPayload() (*enginev1.ExecutionPayload, error)
+	PbCapellaPayload() (*enginev1.ExecutionPayloadCapella, error)
 	PbEip4844Payload() (*enginev1.ExecutionPayload4844, error)
 }
 
@@ -104,6 +106,8 @@ type ExecutionData interface {
 type ExecutionDataHeader interface {
 	ExecutionData
 	TransactionsRoot() []byte
+	WithdrawalsRoot() ([]byte, error)
 	PbGenericPayloadHeader() (*enginev1.ExecutionPayloadHeader, error)
+	PbCapellaPayloadHeader() (*enginev1.ExecutionPayloadHeaderCapella, error)
 	PbEip4844PayloadHeader() (*enginev1.ExecutionPayloadHeader4844, error)
 }

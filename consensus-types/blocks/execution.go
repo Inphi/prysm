@@ -7,6 +7,7 @@ import (
 	fastssz "github.com/prysmaticlabs/fastssz"
 	fieldparams "github.com/prysmaticlabs/prysm/v3/config/fieldparams"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
+	"github.com/prysmaticlabs/prysm/v3/crypto/hash"
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
 	"github.com/prysmaticlabs/prysm/v3/encoding/ssz"
 	enginev1 "github.com/prysmaticlabs/prysm/v3/proto/engine/v1"
@@ -33,6 +34,7 @@ type executionPayload struct {
 	baseFeePerGas []byte
 	blockHash     []byte
 	transactions  [][]byte
+	withdrawals   []*enginev1.Withdrawal
 	excessDataGas []byte
 }
 
@@ -50,6 +52,8 @@ func (e *executionPayload) MarshalSSZ() ([]byte, error) {
 	switch e.version {
 	case version.Bellatrix:
 		return pb.(*enginev1.ExecutionPayload).MarshalSSZ()
+	case version.Capella:
+		return pb.(*enginev1.ExecutionPayloadCapella).MarshalSSZ()
 	case version.EIP4844:
 		return pb.(*enginev1.ExecutionPayload4844).MarshalSSZ()
 	default:
@@ -66,6 +70,8 @@ func (e *executionPayload) MarshalSSZTo(dst []byte) ([]byte, error) {
 	switch e.version {
 	case version.Bellatrix:
 		return pb.(*enginev1.ExecutionPayload).MarshalSSZTo(dst)
+	case version.Capella:
+		return pb.(*enginev1.ExecutionPayloadCapella).MarshalSSZTo(dst)
 	case version.EIP4844:
 		return pb.(*enginev1.ExecutionPayload4844).MarshalSSZTo(dst)
 	default:
@@ -82,6 +88,8 @@ func (e *executionPayload) SizeSSZ() int {
 	switch e.version {
 	case version.Bellatrix:
 		return pb.(*enginev1.ExecutionPayload).SizeSSZ()
+	case version.Capella:
+		return pb.(*enginev1.ExecutionPayloadCapella).SizeSSZ()
 	case version.EIP4844:
 		return pb.(*enginev1.ExecutionPayload4844).SizeSSZ()
 	default:
@@ -100,6 +108,16 @@ func (e *executionPayload) UnmarshalSSZ(buf []byte) error {
 		}
 		var err error
 		newPayload, err = initPayloadFromProto(pb)
+		if err != nil {
+			return err
+		}
+	case version.Capella:
+		pb := &enginev1.ExecutionPayloadCapella{}
+		if err := pb.UnmarshalSSZ(buf); err != nil {
+			return err
+		}
+		var err error
+		newPayload, err = initPayloadFromProtoCapella(pb)
 		if err != nil {
 			return err
 		}
@@ -133,6 +151,8 @@ func (e *executionPayload) HashTreeRoot() ([32]byte, error) {
 	switch e.version {
 	case version.Bellatrix:
 		return pb.(*enginev1.ExecutionPayload).HashTreeRoot()
+	case version.Capella:
+		return pb.(*enginev1.ExecutionPayloadCapella).HashTreeRoot()
 	case version.EIP4844:
 		return pb.(*enginev1.ExecutionPayload4844).HashTreeRoot()
 	default:
@@ -149,6 +169,8 @@ func (e *executionPayload) HashTreeRootWith(h *fastssz.Hasher) error {
 	switch e.version {
 	case version.Bellatrix:
 		return pb.(*enginev1.ExecutionPayload).HashTreeRootWith(h)
+	case version.Capella:
+		return pb.(*enginev1.ExecutionPayloadCapella).HashTreeRootWith(h)
 	case version.EIP4844:
 		return pb.(*enginev1.ExecutionPayload4844).HashTreeRootWith(h)
 	default:
@@ -165,6 +187,17 @@ func (e *executionPayload) PbGenericPayload() (*enginev1.ExecutionPayload, error
 		return nil, err
 	}
 	return proto.(*enginev1.ExecutionPayload), nil
+}
+
+func (e *executionPayload) PbCapellaPayload() (*enginev1.ExecutionPayloadCapella, error) {
+	if e.version != version.Capella {
+		return nil, errNotSupported("PbCapellaPayload", e.version)
+	}
+	proto, err := e.Proto()
+	if err != nil {
+		return nil, err
+	}
+	return proto.(*enginev1.ExecutionPayloadCapella), nil
 }
 
 func (e *executionPayload) PbEip4844Payload() (*enginev1.ExecutionPayload4844, error) {
@@ -198,6 +231,25 @@ func (e *executionPayload) Proto() (proto.Message, error) {
 			BlockHash:     e.blockHash,
 			Transactions:  e.transactions,
 		}, nil
+	case version.Capella:
+		return &enginev1.ExecutionPayload4844{
+			ParentHash:    e.parentHash,
+			FeeRecipient:  e.feeRecipient,
+			StateRoot:     e.stateRoot,
+			ReceiptsRoot:  e.receiptsRoot,
+			LogsBloom:     e.logsBloom,
+			PrevRandao:    e.prevRandao,
+			BlockNumber:   e.blockNumber,
+			GasLimit:      e.gasLimit,
+			GasUsed:       e.gasUsed,
+			Timestamp:     e.timestamp,
+			ExtraData:     e.extraData,
+			BaseFeePerGas: e.baseFeePerGas,
+			BlockHash:     e.blockHash,
+			Transactions:  e.transactions,
+			Withdrawals:   e.withdrawals,
+			ExcessDataGas: e.excessDataGas,
+		}, nil
 	case version.EIP4844:
 		return &enginev1.ExecutionPayload4844{
 			ParentHash:    e.parentHash,
@@ -214,6 +266,7 @@ func (e *executionPayload) Proto() (proto.Message, error) {
 			BaseFeePerGas: e.baseFeePerGas,
 			BlockHash:     e.blockHash,
 			Transactions:  e.transactions,
+			Withdrawals:   e.withdrawals,
 			ExcessDataGas: e.excessDataGas,
 		}, nil
 	default:
@@ -291,6 +344,16 @@ func (e executionPayload) Transactions() ([][]byte, error) {
 	return e.transactions, nil
 }
 
+// Withdrawals --
+func (e executionPayload) Withdrawals() ([]*enginev1.Withdrawal, error) {
+	switch e.version {
+	case version.Capella, version.EIP4844:
+		return e.withdrawals, nil
+	default:
+		return nil, ErrUnsupportedGetter
+	}
+}
+
 // ExcessDataGas --
 func (e *executionPayload) ExcessDataGas() ([]byte, error) {
 	switch e.version {
@@ -304,9 +367,13 @@ func (e *executionPayload) ExcessDataGas() ([]byte, error) {
 // PayloadToHeader converts `payload` into execution payload header format.
 func PayloadToHeader(payload interfaces.ExecutionData) (interfaces.ExecutionDataHeader, error) {
 	var txRoot [32]byte
+	var withdrawalsRoot [32]byte
 	// HACK: We can sidestep an invalid getters call for Transactions() if we know we're dealing with an actual payload header
 	if h, ok := payload.(*executionPayloadHeader); ok {
 		txRoot = bytesutil.ToBytes32(h.transactionsRoot)
+		if payload.Version() == version.Capella || payload.Version() == version.EIP4844 {
+			withdrawalsRoot = bytesutil.ToBytes32(h.withdrawalsRoot)
+		}
 	} else {
 		txs, err := payload.Transactions()
 		if err != nil {
@@ -316,7 +383,18 @@ func PayloadToHeader(payload interfaces.ExecutionData) (interfaces.ExecutionData
 		if err != nil {
 			return nil, err
 		}
+		if payload.Version() == version.Capella || payload.Version() == version.EIP4844 {
+			withdrawals, err := payload.Withdrawals()
+			if err != nil {
+				return nil, err
+			}
+			withdrawalsRoot, err = ssz.WithdrawalSliceRoot(hash.CustomSHA256Hasher(), withdrawals, fieldparams.MaxWithdrawalsPerPayload)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
+
 	var i interface{}
 	switch payload.Version() {
 	case version.Bellatrix:
@@ -335,6 +413,24 @@ func PayloadToHeader(payload interfaces.ExecutionData) (interfaces.ExecutionData
 			BaseFeePerGas:    bytesutil.SafeCopyBytes(payload.BaseFeePerGas()),
 			BlockHash:        bytesutil.SafeCopyBytes(payload.BlockHash()),
 			TransactionsRoot: txRoot[:],
+		}
+	case version.Capella:
+		i = &enginev1.ExecutionPayloadHeaderCapella{
+			ParentHash:       bytesutil.SafeCopyBytes(payload.ParentHash()),
+			FeeRecipient:     bytesutil.SafeCopyBytes(payload.FeeRecipient()),
+			StateRoot:        bytesutil.SafeCopyBytes(payload.StateRoot()),
+			ReceiptsRoot:     bytesutil.SafeCopyBytes(payload.ReceiptsRoot()),
+			LogsBloom:        bytesutil.SafeCopyBytes(payload.LogsBloom()),
+			PrevRandao:       bytesutil.SafeCopyBytes(payload.PrevRandao()),
+			BlockNumber:      payload.BlockNumber(),
+			GasLimit:         payload.GasLimit(),
+			GasUsed:          payload.GasUsed(),
+			Timestamp:        payload.Timestamp(),
+			ExtraData:        bytesutil.SafeCopyBytes(payload.ExtraData()),
+			BaseFeePerGas:    bytesutil.SafeCopyBytes(payload.BaseFeePerGas()),
+			BlockHash:        bytesutil.SafeCopyBytes(payload.BlockHash()),
+			TransactionsRoot: txRoot[:],
+			WithdrawalsRoot:  withdrawalsRoot[:],
 		}
 	case version.EIP4844:
 		excessDataGas, err := payload.ExcessDataGas()
@@ -356,6 +452,7 @@ func PayloadToHeader(payload interfaces.ExecutionData) (interfaces.ExecutionData
 			BaseFeePerGas:    bytesutil.SafeCopyBytes(payload.BaseFeePerGas()),
 			BlockHash:        bytesutil.SafeCopyBytes(payload.BlockHash()),
 			TransactionsRoot: txRoot[:],
+			WithdrawalsRoot:  withdrawalsRoot[:],
 			ExcessDataGas:    bytesutil.SafeCopyBytes(excessDataGas),
 		}
 	default:

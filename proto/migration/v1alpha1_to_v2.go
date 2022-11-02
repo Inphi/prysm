@@ -9,6 +9,7 @@ import (
 	ethpbv1 "github.com/prysmaticlabs/prysm/v3/proto/eth/v1"
 	ethpbv2 "github.com/prysmaticlabs/prysm/v3/proto/eth/v2"
 	ethpbalpha "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
+	"github.com/prysmaticlabs/prysm/v3/runtime/version"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -621,6 +622,9 @@ func BeaconStateBellatrixToProto(st state.BeaconState) (*ethpbv2.BeaconStateBell
 	sourceLatestExecutionPayloadHeader, err := st.LatestExecutionPayloadHeader()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get latest execution payload header")
+	}
+	if sourceLatestExecutionPayloadHeader.Version() != version.Bellatrix {
+		return nil, errors.New("execution payload header has incorrect type")
 	}
 
 	result := &ethpbv2.BeaconStateBellatrix{

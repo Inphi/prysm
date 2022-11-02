@@ -55,6 +55,7 @@ func TestByState(t *testing.T) {
 	}()
 	bc := params.BeaconConfig()
 	altairSlot, err := slots.EpochStart(bc.AltairForkEpoch)
+	require.NoError(t, err)
 	bellaSlot, err := slots.EpochStart(bc.BellatrixForkEpoch)
 	require.NoError(t, err)
 	cases := []struct {
@@ -137,10 +138,12 @@ func stateForVersion(v int) (state.BeaconState, error) {
 		return util.NewBeaconStateAltair()
 	case version.Bellatrix:
 		return util.NewBeaconStateBellatrix()
+	case version.Capella:
+		return util.NewBeaconStateCapella()
 	case version.EIP4844:
 		return util.NewBeaconState4844()
 	default:
-		return nil, fmt.Errorf("unrecognoized version %d", v)
+		return nil, fmt.Errorf("unrecognized version %d", v)
 	}
 }
 

@@ -12,7 +12,7 @@ func (b *BeaconState) SetLatestExecutionPayloadHeader(val interfaces.ExecutionDa
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	if b.version == version.Phase0 || b.version == version.Altair {
+	if b.version < version.Bellatrix {
 		return errNotSupported("SetLatestExecutionPayloadHeader", b.version)
 	}
 

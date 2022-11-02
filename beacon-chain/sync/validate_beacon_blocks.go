@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/protolambda/go-kzg/bls"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blocks"

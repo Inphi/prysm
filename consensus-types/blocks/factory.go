@@ -49,6 +49,10 @@ func NewSignedBeaconBlock(i interface{}) (interfaces.SignedBeaconBlock, error) {
 		return initBlindedSignedBlockFromProtoBellatrix(b.BlindedBellatrix)
 	case *eth.SignedBlindedBeaconBlockBellatrix:
 		return initBlindedSignedBlockFromProtoBellatrix(b)
+	case *eth.GenericSignedBeaconBlock_Capella:
+		return initSignedBlockFromProtoCapella(b.Capella)
+	case *eth.SignedBeaconBlockCapella:
+		return initSignedBlockFromProtoCapella(b)
 	case *eth.GenericSignedBeaconBlock_Eip4844:
 		return initSignedBlockFromProtoEip4844(b.Eip4844)
 	case *eth.SignedBeaconBlockWithBlobKZGs:
@@ -79,6 +83,10 @@ func NewBeaconBlock(i interface{}) (interfaces.BeaconBlock, error) {
 		return initBlindedBlockFromProtoBellatrix(b.BlindedBellatrix)
 	case *eth.BlindedBeaconBlockBellatrix:
 		return initBlindedBlockFromProtoBellatrix(b)
+	case *eth.GenericBeaconBlock_Capella:
+		return initBlockFromProtoCapella(b.Capella)
+	case *eth.BeaconBlockCapella:
+		return initBlockFromProtoCapella(b)
 	case *eth.GenericBeaconBlock_Eip4844:
 		return initBlockFromProtoEip4844(b.Eip4844)
 	case *eth.BeaconBlockWithBlobKZGs:
@@ -101,6 +109,8 @@ func NewBeaconBlockBody(i interface{}) (interfaces.BeaconBlockBody, error) {
 		return initBlockBodyFromProtoBellatrix(b)
 	case *eth.BlindedBeaconBlockBodyBellatrix:
 		return initBlindedBlockBodyFromProtoBellatrix(b)
+	case *eth.BeaconBlockBodyCapella:
+		return initBlockBodyFromProtoCapella(b)
 	case *eth.BeaconBlockBodyWithBlobKZGs:
 		return initBlockBodyFromProtoEip4844(b)
 	default:
@@ -143,6 +153,12 @@ func BuildSignedBeaconBlock(blk interfaces.BeaconBlock, signature []byte) (inter
 			return nil, errIncorrectBlockVersion
 		}
 		return NewSignedBeaconBlock(&eth.SignedBeaconBlockBellatrix{Block: pb, Signature: signature})
+	case version.Capella:
+		pb, ok := pb.(*eth.BeaconBlockCapella)
+		if !ok {
+			return nil, errIncorrectBlockVersion
+		}
+		return NewSignedBeaconBlock(&eth.SignedBeaconBlockCapella{Block: pb, Signature: signature})
 	case version.EIP4844:
 		pb, ok := pb.(*eth.BeaconBlockWithBlobKZGs)
 		if !ok {
@@ -231,6 +247,8 @@ func NewExecutionData(i interface{}) (interfaces.ExecutionData, error) {
 		return nil, ErrNilObjectWrapped
 	case *enginev1.ExecutionPayload:
 		return initPayloadFromProto(e)
+	case *enginev1.ExecutionPayloadCapella:
+		return initPayloadFromProtoCapella(e)
 	case *enginev1.ExecutionPayload4844:
 		return initPayloadFromProto4844(e)
 	default:
@@ -244,9 +262,11 @@ func NewExecutionDataHeader(i interface{}) (interfaces.ExecutionDataHeader, erro
 		return nil, ErrNilObjectWrapped
 	case *enginev1.ExecutionPayloadHeader:
 		return initPayloadHeaderFromProto(e)
+	case *enginev1.ExecutionPayloadHeaderCapella:
+		return initPayloadHeaderFromProtoCapella(e)
 	case *enginev1.ExecutionPayloadHeader4844:
 		return initPayloadHeaderFromProto4844(e)
 	default:
-		return nil, errors.Wrapf(ErrUnsupportedPayload, "unable to create execution payload from type %T", i)
+		return nil, errors.Wrapf(ErrUnsupportedPayload, "unable to create execution payload header from type %T", i)
 	}
 }

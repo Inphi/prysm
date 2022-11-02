@@ -33,6 +33,8 @@ func ComputeFieldRootsWithHasher(ctx context.Context, state *BeaconState) ([][]b
 		fieldRoots = make([][]byte, params.BeaconConfig().BeaconStateAltairFieldCount)
 	case version.Bellatrix:
 		fieldRoots = make([][]byte, params.BeaconConfig().BeaconStateBellatrixFieldCount)
+	case version.Capella:
+		fieldRoots = make([][]byte, params.BeaconConfig().BeaconStateCapellaFieldCount)
 	case version.EIP4844:
 		fieldRoots = make([][]byte, params.BeaconConfig().BeaconState4844FieldCount)
 	}
@@ -165,7 +167,7 @@ func ComputeFieldRootsWithHasher(ctx context.Context, state *BeaconState) ([][]b
 		fieldRoots[nativetypes.CurrentEpochAttestations.RealPosition()] = currAttsRoot[:]
 	}
 
-	if state.version == version.Altair || state.version == version.Bellatrix || state.version == version.EIP4844 {
+	if state.version >= version.Altair {
 		// PreviousEpochParticipation slice root.
 		prevParticipationRoot, err := stateutil.ParticipationBitsRoot(state.previousEpochParticipation)
 		if err != nil {
@@ -206,7 +208,7 @@ func ComputeFieldRootsWithHasher(ctx context.Context, state *BeaconState) ([][]b
 	}
 	fieldRoots[nativetypes.FinalizedCheckpoint.RealPosition()] = finalRoot[:]
 
-	if state.version == version.Altair || state.version == version.Bellatrix || state.version == version.EIP4844 {
+	if state.version >= version.Altair {
 		// Inactivity scores root.
 		inactivityScoresRoot, err := stateutil.Uint64ListRootWithRegistryLimit(state.inactivityScores)
 		if err != nil {
@@ -229,13 +231,39 @@ func ComputeFieldRootsWithHasher(ctx context.Context, state *BeaconState) ([][]b
 		fieldRoots[nativetypes.NextSyncCommittee.RealPosition()] = nextSyncCommitteeRoot[:]
 	}
 
-	if state.version == version.Bellatrix || state.version == version.EIP4844 {
+	if state.version >= version.Bellatrix {
 		// Execution payload root.
 		executionPayloadRoot, err := state.latestExecutionPayloadHeader.HashTreeRoot()
 		if err != nil {
 			return nil, err
 		}
 		fieldRoots[nativetypes.LatestExecutionPayloadHeader.RealPosition()] = executionPayloadRoot[:]
+	}
+
+	if state.version == version.Capella || state.version == version.EIP4844 {
+		// Execution payload root.
+		executionPayloadRoot, err := state.latestExecutionPayloadHeader.HashTreeRoot()
+		if err != nil {
+			return nil, err
+		}
+		fieldRoots[nativetypes.LatestExecutionPayloadHeader.RealPosition()] = executionPayloadRoot[:]
+
+		// Withdrawal queue root.
+		withdrawalQueueRoot, err := ssz.WithdrawalSliceRoot(hasher, state.withdrawalQueue, fieldparams.WithdrawalQueueLimit)
+		if err != nil {
+			return nil, err
+		}
+		fieldRoots[nativetypes.WithdrawalQueue.RealPosition()] = withdrawalQueueRoot[:]
+
+		// Next withdrawal index root.
+		nextWithdrawalIndexRoot := make([]byte, 32)
+		binary.LittleEndian.PutUint64(nextWithdrawalIndexRoot, state.nextWithdrawalIndex)
+		fieldRoots[nativetypes.NextWithdrawalIndex.RealPosition()] = nextWithdrawalIndexRoot
+
+		// Next partial withdrawal validator index root.
+		nextPartialWithdrawalValidatorIndexRoot := make([]byte, 32)
+		binary.LittleEndian.PutUint64(nextPartialWithdrawalValidatorIndexRoot, uint64(state.nextPartialWithdrawalValidatorIndex))
+		fieldRoots[nativetypes.NextPartialWithdrawalValidatorIndex.RealPosition()] = nextPartialWithdrawalValidatorIndexRoot
 	}
 
 	return fieldRoots, nil

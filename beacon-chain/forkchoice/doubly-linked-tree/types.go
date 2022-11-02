@@ -14,7 +14,8 @@ type ForkChoice struct {
 	store            *Store
 	votes            []Vote // tracks individual validator's last vote.
 	votesLock        sync.RWMutex
-	balances         []uint64 // tracks individual validator's last justified balances.
+	balances         []uint64                    // tracks individual validator's last justified balances.
+	balancesByRoot   forkchoice.BalancesByRooter // handler to obtain balances for the state with a given root
 	dataAvailability forkchoice.DataAvailability
 }
 

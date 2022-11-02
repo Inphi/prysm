@@ -193,7 +193,8 @@ var mainnetBeaconConfig = &BeaconChainConfig{
 	BeaconStateFieldCount:          21,
 	BeaconStateAltairFieldCount:    24,
 	BeaconStateBellatrixFieldCount: 25,
-	BeaconState4844FieldCount:      25,
+	BeaconStateCapellaFieldCount:   28,
+	BeaconState4844FieldCount:      28,
 
 	// Slasher related values.
 	WeakSubjectivityPeriod:          54000,
@@ -262,6 +263,9 @@ var mainnetBeaconConfig = &BeaconChainConfig{
 	// Mevboost circuit breaker
 	MaxBuilderConsecutiveMissedSlots: 3,
 	MaxBuilderEpochMissedSlots:       8,
+
+	// Execution engine timeout value
+	ExecutionEngineTimeoutValue: 8, // 8 seconds default based on: https://github.com/ethereum/execution-apis/blob/main/src/engine/specification.md#core
 }
 
 // MainnetTestConfig provides a version of the mainnet config that has a different name

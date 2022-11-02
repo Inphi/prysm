@@ -54,6 +54,7 @@ var (
 	altairKey         = []byte("altair")
 	bellatrixKey      = []byte("merge")
 	bellatrixBlindKey = []byte("blind-bellatrix")
+	capellaKey        = []byte("capella")
 	eip4844Key        = []byte("eip4844")
 	// block root included in the beacon state used by weak subjectivity initial sync
 	originCheckpointBlockRootKey = []byte("origin-checkpoint-block-root")

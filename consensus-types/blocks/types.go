@@ -40,20 +40,21 @@ var (
 
 // BeaconBlockBody is the main beacon block body structure. It can represent any block type.
 type BeaconBlockBody struct {
-	version             int
-	isBlinded           bool
-	randaoReveal        [field_params.BLSSignatureLength]byte
-	eth1Data            *eth.Eth1Data
-	graffiti            [field_params.RootLength]byte
-	proposerSlashings   []*eth.ProposerSlashing
-	attesterSlashings   []*eth.AttesterSlashing
-	attestations        []*eth.Attestation
-	deposits            []*eth.Deposit
-	voluntaryExits      []*eth.SignedVoluntaryExit
-	syncAggregate       *eth.SyncAggregate
-	executionData       interfaces.ExecutionData
-	executionDataHeader interfaces.ExecutionDataHeader
-	blobKzgs            [][]byte
+	version               int
+	isBlinded             bool
+	randaoReveal          [field_params.BLSSignatureLength]byte
+	eth1Data              *eth.Eth1Data
+	graffiti              [field_params.RootLength]byte
+	proposerSlashings     []*eth.ProposerSlashing
+	attesterSlashings     []*eth.AttesterSlashing
+	attestations          []*eth.Attestation
+	deposits              []*eth.Deposit
+	voluntaryExits        []*eth.SignedVoluntaryExit
+	syncAggregate         *eth.SyncAggregate
+	executionData         interfaces.ExecutionData
+	executionDataHeader   interfaces.ExecutionDataHeader
+	blsToExecutionChanges []*eth.SignedBLSToExecutionChange
+	blobKzgs              [][]byte
 }
 
 // BeaconBlock is the main beacon block structure. It can represent any block type.

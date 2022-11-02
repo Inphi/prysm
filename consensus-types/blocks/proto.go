@@ -74,7 +74,35 @@ func (b *SignedBeaconBlock) Proto() (proto.Message, error) {
 			Block:     block,
 			Signature: b.signature[:],
 		}, nil
+	case version.Capella:
+		if b.IsBlinded() {
+			var block *eth.BlindedBeaconBlockCapella
+			if blockMessage != nil {
+				var ok bool
+				block, ok = blockMessage.(*eth.BlindedBeaconBlockCapella)
+				if !ok {
+					return nil, errIncorrectBlockVersion
+				}
+			}
+			return &eth.SignedBlindedBeaconBlockCapella{
+				Block:     block,
+				Signature: b.signature[:],
+			}, nil
+		}
+		var block *eth.BeaconBlockCapella
+		if blockMessage != nil {
+			var ok bool
+			block, ok = blockMessage.(*eth.BeaconBlockCapella)
+			if !ok {
+				return nil, errIncorrectBlockVersion
+			}
+		}
+		return &eth.SignedBeaconBlockCapella{
+			Block:     block,
+			Signature: b.signature[:],
+		}, nil
 	case version.EIP4844:
+		// TODO(EIP-4844): Blinded EIP-4844 block
 		var block *eth.BeaconBlockWithBlobKZGs
 		if blockMessage != nil {
 			var ok bool
@@ -166,7 +194,41 @@ func (b *BeaconBlock) Proto() (proto.Message, error) {
 			StateRoot:     b.stateRoot[:],
 			Body:          body,
 		}, nil
+	case version.Capella:
+		if b.IsBlinded() {
+			var body *eth.BlindedBeaconBlockBodyCapella
+			if bodyMessage != nil {
+				var ok bool
+				body, ok = bodyMessage.(*eth.BlindedBeaconBlockBodyCapella)
+				if !ok {
+					return nil, errIncorrectBodyVersion
+				}
+			}
+			return &eth.BlindedBeaconBlockCapella{
+				Slot:          b.slot,
+				ProposerIndex: b.proposerIndex,
+				ParentRoot:    b.parentRoot[:],
+				StateRoot:     b.stateRoot[:],
+				Body:          body,
+			}, nil
+		}
+		var body *eth.BeaconBlockBodyCapella
+		if bodyMessage != nil {
+			var ok bool
+			body, ok = bodyMessage.(*eth.BeaconBlockBodyCapella)
+			if !ok {
+				return nil, errIncorrectBodyVersion
+			}
+		}
+		return &eth.BeaconBlockCapella{
+			Slot:          b.slot,
+			ProposerIndex: b.proposerIndex,
+			ParentRoot:    b.parentRoot[:],
+			StateRoot:     b.stateRoot[:],
+			Body:          body,
+		}, nil
 	case version.EIP4844:
+		// TODO(EIP-4844): Blinded beacon block
 		var body *eth.BeaconBlockBodyWithBlobKZGs
 		if bodyMessage != nil {
 			var ok bool
@@ -252,9 +314,46 @@ func (b *BeaconBlockBody) Proto() (proto.Message, error) {
 			SyncAggregate:     b.syncAggregate,
 			ExecutionPayload:  payload,
 		}, nil
+	case version.Capella:
+		if b.isBlinded {
+			ph, err := b.executionDataHeader.PbCapellaPayloadHeader()
+			if err != nil {
+				return nil, err
+			}
+			return &eth.BlindedBeaconBlockBodyCapella{
+				RandaoReveal:           b.randaoReveal[:],
+				Eth1Data:               b.eth1Data,
+				Graffiti:               b.graffiti[:],
+				ProposerSlashings:      b.proposerSlashings,
+				AttesterSlashings:      b.attesterSlashings,
+				Attestations:           b.attestations,
+				Deposits:               b.deposits,
+				VoluntaryExits:         b.voluntaryExits,
+				SyncAggregate:          b.syncAggregate,
+				ExecutionPayloadHeader: ph,
+				BlsToExecutionChanges:  b.blsToExecutionChanges,
+			}, nil
+		}
+		p, err := b.executionData.PbCapellaPayload()
+		if err != nil {
+			return nil, err
+		}
+		return &eth.BeaconBlockBodyCapella{
+			RandaoReveal:          b.randaoReveal[:],
+			Eth1Data:              b.eth1Data,
+			Graffiti:              b.graffiti[:],
+			ProposerSlashings:     b.proposerSlashings,
+			AttesterSlashings:     b.attesterSlashings,
+			Attestations:          b.attestations,
+			Deposits:              b.deposits,
+			VoluntaryExits:        b.voluntaryExits,
+			SyncAggregate:         b.syncAggregate,
+			ExecutionPayload:      p,
+			BlsToExecutionChanges: b.blsToExecutionChanges,
+		}, nil
 	case version.EIP4844:
 		// TODO(EIP-4844): Blinded blocks
-		payload, err := b.executionData.PbEip4844Payload()
+		p, err := b.executionData.PbEip4844Payload()
 		if err != nil {
 			return nil, err
 		}
@@ -268,7 +367,7 @@ func (b *BeaconBlockBody) Proto() (proto.Message, error) {
 			Deposits:          b.deposits,
 			VoluntaryExits:    b.voluntaryExits,
 			SyncAggregate:     b.syncAggregate,
-			ExecutionPayload:  payload,
+			ExecutionPayload:  p,
 			BlobKzgs:          b.blobKzgs,
 		}, nil
 	default:
@@ -321,6 +420,23 @@ func initSignedBlockFromProtoBellatrix(pb *eth.SignedBeaconBlockBellatrix) (*Sig
 	}
 	b := &SignedBeaconBlock{
 		version:   version.Bellatrix,
+		block:     block,
+		signature: bytesutil.ToBytes96(pb.Signature),
+	}
+	return b, nil
+}
+
+func initSignedBlockFromProtoCapella(pb *eth.SignedBeaconBlockCapella) (*SignedBeaconBlock, error) {
+	if pb == nil {
+		return nil, errNilBlock
+	}
+
+	block, err := initBlockFromProtoCapella(pb.Block)
+	if err != nil {
+		return nil, err
+	}
+	b := &SignedBeaconBlock{
+		version:   version.Capella,
 		block:     block,
 		signature: bytesutil.ToBytes96(pb.Signature),
 	}
@@ -432,6 +548,26 @@ func initBlindedBlockFromProtoBellatrix(pb *eth.BlindedBeaconBlockBellatrix) (*B
 	}
 	b := &BeaconBlock{
 		version:       version.Bellatrix,
+		slot:          pb.Slot,
+		proposerIndex: pb.ProposerIndex,
+		parentRoot:    bytesutil.ToBytes32(pb.ParentRoot),
+		stateRoot:     bytesutil.ToBytes32(pb.StateRoot),
+		body:          body,
+	}
+	return b, nil
+}
+
+func initBlockFromProtoCapella(pb *eth.BeaconBlockCapella) (*BeaconBlock, error) {
+	if pb == nil {
+		return nil, errNilBlock
+	}
+
+	body, err := initBlockBodyFromProtoCapella(pb.Body)
+	if err != nil {
+		return nil, err
+	}
+	b := &BeaconBlock{
+		version:       version.Capella,
 		slot:          pb.Slot,
 		proposerIndex: pb.ProposerIndex,
 		parentRoot:    bytesutil.ToBytes32(pb.ParentRoot),
@@ -556,6 +692,33 @@ func initBlindedBlockBodyFromProtoBellatrix(pb *eth.BlindedBeaconBlockBodyBellat
 	return b, nil
 }
 
+func initBlockBodyFromProtoCapella(pb *eth.BeaconBlockBodyCapella) (*BeaconBlockBody, error) {
+	if pb == nil {
+		return nil, errNilBlockBody
+	}
+
+	executionData, err := NewExecutionData(pb.ExecutionPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	b := &BeaconBlockBody{
+		version:           version.Capella,
+		isBlinded:         false,
+		randaoReveal:      bytesutil.ToBytes96(pb.RandaoReveal),
+		eth1Data:          pb.Eth1Data,
+		graffiti:          bytesutil.ToBytes32(pb.Graffiti),
+		proposerSlashings: pb.ProposerSlashings,
+		attesterSlashings: pb.AttesterSlashings,
+		attestations:      pb.Attestations,
+		deposits:          pb.Deposits,
+		voluntaryExits:    pb.VoluntaryExits,
+		syncAggregate:     pb.SyncAggregate,
+		executionData:     executionData,
+	}
+	return b, nil
+}
+
 func initBlockBodyFromProtoEip4844(pb *eth.BeaconBlockBodyWithBlobKZGs) (*BeaconBlockBody, error) {
 	if pb == nil {
 		return nil, errNilBlockBody
@@ -609,6 +772,32 @@ func initPayloadFromProto(pb *enginev1.ExecutionPayload) (*executionPayload, err
 	return e, nil
 }
 
+func initPayloadFromProtoCapella(pb *enginev1.ExecutionPayloadCapella) (*executionPayload, error) {
+	if pb == nil {
+		return nil, errNilPayload
+	}
+
+	e := &executionPayload{
+		version:       version.Capella,
+		parentHash:    pb.ParentHash,
+		feeRecipient:  pb.FeeRecipient,
+		stateRoot:     pb.StateRoot,
+		receiptsRoot:  pb.ReceiptsRoot,
+		logsBloom:     pb.LogsBloom,
+		prevRandao:    pb.PrevRandao,
+		blockNumber:   pb.BlockNumber,
+		gasLimit:      pb.GasLimit,
+		gasUsed:       pb.GasUsed,
+		timestamp:     pb.Timestamp,
+		extraData:     pb.ExtraData,
+		baseFeePerGas: pb.BaseFeePerGas,
+		blockHash:     pb.BlockHash,
+		transactions:  pb.Transactions,
+		withdrawals:   pb.Withdrawals,
+	}
+	return e, nil
+}
+
 func initPayloadFromProto4844(pb *enginev1.ExecutionPayload4844) (*executionPayload, error) {
 	if pb == nil {
 		return nil, errNilPayload
@@ -630,6 +819,7 @@ func initPayloadFromProto4844(pb *enginev1.ExecutionPayload4844) (*executionPayl
 		baseFeePerGas: pb.BaseFeePerGas,
 		blockHash:     pb.BlockHash,
 		transactions:  pb.Transactions,
+		withdrawals:   pb.Withdrawals,
 		excessDataGas: pb.ExcessDataGas,
 	}
 	return e, nil
@@ -660,6 +850,32 @@ func initPayloadHeaderFromProto(pb *enginev1.ExecutionPayloadHeader) (*execution
 	return e, nil
 }
 
+func initPayloadHeaderFromProtoCapella(pb *enginev1.ExecutionPayloadHeaderCapella) (*executionPayloadHeader, error) {
+	if pb == nil {
+		return nil, errNilPayload
+	}
+
+	e := &executionPayloadHeader{
+		version:          version.Capella,
+		parentHash:       pb.ParentHash,
+		feeRecipient:     pb.FeeRecipient,
+		stateRoot:        pb.StateRoot,
+		receiptsRoot:     pb.ReceiptsRoot,
+		logsBloom:        pb.LogsBloom,
+		prevRandao:       pb.PrevRandao,
+		blockNumber:      pb.BlockNumber,
+		gasLimit:         pb.GasLimit,
+		gasUsed:          pb.GasUsed,
+		timestamp:        pb.Timestamp,
+		extraData:        pb.ExtraData,
+		baseFeePerGas:    pb.BaseFeePerGas,
+		blockHash:        pb.BlockHash,
+		transactionsRoot: pb.TransactionsRoot,
+		withdrawalsRoot:  pb.WithdrawalsRoot,
+	}
+	return e, nil
+}
+
 func initPayloadHeaderFromProto4844(pb *enginev1.ExecutionPayloadHeader4844) (*executionPayloadHeader, error) {
 	if pb == nil {
 		return nil, errNilPayload
@@ -681,6 +897,7 @@ func initPayloadHeaderFromProto4844(pb *enginev1.ExecutionPayloadHeader4844) (*e
 		baseFeePerGas:    pb.BaseFeePerGas,
 		blockHash:        pb.BlockHash,
 		transactionsRoot: pb.TransactionsRoot,
+		withdrawalsRoot:  pb.WithdrawalsRoot,
 		excessDataGas:    pb.ExcessDataGas,
 	}
 	return e, nil

@@ -493,6 +493,30 @@ func CopyExecutionPayloadHeader(payload *enginev1.ExecutionPayloadHeader) *engin
 	}
 }
 
+// CopyExecutionPayloadHeaderCapella copies the provided execution payload object.
+func CopyExecutionPayloadHeaderCapella(payload *enginev1.ExecutionPayloadHeaderCapella) *enginev1.ExecutionPayloadHeaderCapella {
+	if payload == nil {
+		return nil
+	}
+	return &enginev1.ExecutionPayloadHeaderCapella{
+		ParentHash:       bytesutil.SafeCopyBytes(payload.ParentHash),
+		FeeRecipient:     bytesutil.SafeCopyBytes(payload.FeeRecipient),
+		StateRoot:        bytesutil.SafeCopyBytes(payload.StateRoot),
+		ReceiptsRoot:     bytesutil.SafeCopyBytes(payload.ReceiptsRoot),
+		LogsBloom:        bytesutil.SafeCopyBytes(payload.LogsBloom),
+		PrevRandao:       bytesutil.SafeCopyBytes(payload.PrevRandao),
+		BlockNumber:      payload.BlockNumber,
+		GasLimit:         payload.GasLimit,
+		GasUsed:          payload.GasUsed,
+		Timestamp:        payload.Timestamp,
+		BaseFeePerGas:    bytesutil.SafeCopyBytes(payload.BaseFeePerGas),
+		ExtraData:        bytesutil.SafeCopyBytes(payload.ExtraData),
+		BlockHash:        bytesutil.SafeCopyBytes(payload.BlockHash),
+		TransactionsRoot: bytesutil.SafeCopyBytes(payload.TransactionsRoot),
+		WithdrawalsRoot:  bytesutil.SafeCopyBytes(payload.WithdrawalsRoot),
+	}
+}
+
 // CopyExecutionPayloadHeader copies the provided execution payload object.
 func CopyExecutionPayloadHeader4844(payload *enginev1.ExecutionPayloadHeader4844) *enginev1.ExecutionPayloadHeader4844 {
 	if payload == nil {
@@ -513,6 +537,7 @@ func CopyExecutionPayloadHeader4844(payload *enginev1.ExecutionPayloadHeader4844
 		ExtraData:        bytesutil.SafeCopyBytes(payload.ExtraData),
 		BlockHash:        bytesutil.SafeCopyBytes(payload.BlockHash),
 		TransactionsRoot: bytesutil.SafeCopyBytes(payload.TransactionsRoot),
+		WithdrawalsRoot:  bytesutil.SafeCopyBytes(payload.WithdrawalsRoot),
 		ExcessDataGas:    bytesutil.SafeCopyBytes(payload.ExcessDataGas),
 	}
 }
@@ -558,6 +583,20 @@ func CopyBlindedBeaconBlockBodyBellatrix(body *BlindedBeaconBlockBodyBellatrix) 
 		VoluntaryExits:         CopySignedVoluntaryExits(body.VoluntaryExits),
 		SyncAggregate:          CopySyncAggregate(body.SyncAggregate),
 		ExecutionPayloadHeader: CopyExecutionPayloadHeader(body.ExecutionPayloadHeader),
+	}
+}
+
+// CopyWithdrawal copies the provided withdrawal object.
+func CopyWithdrawal(withdrawal *enginev1.Withdrawal) *enginev1.Withdrawal {
+	if withdrawal == nil {
+		return nil
+	}
+
+	return &enginev1.Withdrawal{
+		WithdrawalIndex:  withdrawal.WithdrawalIndex,
+		ValidatorIndex:   withdrawal.ValidatorIndex,
+		ExecutionAddress: bytesutil.SafeCopyBytes(withdrawal.ExecutionAddress),
+		Amount:           withdrawal.Amount,
 	}
 }
 
@@ -609,4 +648,17 @@ func CopyBeaconBlockBodyWithBlobKZGs(body *BeaconBlockBodyWithBlobKZGs) *BeaconB
 // CopyBlobKZGs copies the provided blob kzgs object.
 func CopyBlobKZGs(b [][]byte) [][]byte {
 	return bytesutil.SafeCopy2dBytes(b)
+}
+
+// CopyWithdrawalSlice copies the provided slice of withdrawals.
+func CopyWithdrawalSlice(withdrawals []*enginev1.Withdrawal) []*enginev1.Withdrawal {
+	if withdrawals == nil {
+		return nil
+	}
+
+	res := make([]*enginev1.Withdrawal, len(withdrawals))
+	for i := 0; i < len(res); i++ {
+		res[i] = CopyWithdrawal(withdrawals[i])
+	}
+	return res
 }

@@ -27,6 +27,12 @@ func TestBeaconState_SlotDataRace_Bellatrix(t *testing.T) {
 	})
 }
 
+func TestBeaconState_SlotDataRace_Capella(t *testing.T) {
+	testtmpl.VerifyBeaconStateSlotDataRace(t, func() (state.BeaconState, error) {
+		return InitializeFromProtoCapella(&ethpb.BeaconStateCapella{Slot: 1})
+	})
+}
+
 func TestBeaconState_MatchCurrentJustifiedCheckpt_Phase0(t *testing.T) {
 	testtmpl.VerifyBeaconStateMatchCurrentJustifiedCheckptNative(
 		t,
@@ -50,6 +56,15 @@ func TestBeaconState_MatchCurrentJustifiedCheckpt_Bellatrix(t *testing.T) {
 		t,
 		func(cp *ethpb.Checkpoint) (state.BeaconState, error) {
 			return InitializeFromProtoBellatrix(&ethpb.BeaconStateBellatrix{CurrentJustifiedCheckpoint: cp, LatestExecutionPayloadHeader: &enginev1.ExecutionPayloadHeader{}})
+		},
+	)
+}
+
+func TestBeaconState_MatchCurrentJustifiedCheckpt_Capella(t *testing.T) {
+	testtmpl.VerifyBeaconStateMatchCurrentJustifiedCheckptNative(
+		t,
+		func(cp *ethpb.Checkpoint) (state.BeaconState, error) {
+			return InitializeFromProtoCapella(&ethpb.BeaconStateCapella{CurrentJustifiedCheckpoint: cp})
 		},
 	)
 }
@@ -81,6 +96,15 @@ func TestBeaconState_MatchPreviousJustifiedCheckpt_Bellatrix(t *testing.T) {
 	)
 }
 
+func TestBeaconState_MatchPreviousJustifiedCheckpt_Capella(t *testing.T) {
+	testtmpl.VerifyBeaconStateMatchPreviousJustifiedCheckptNative(
+		t,
+		func(cp *ethpb.Checkpoint) (state.BeaconState, error) {
+			return InitializeFromProtoCapella(&ethpb.BeaconStateCapella{PreviousJustifiedCheckpoint: cp})
+		},
+	)
+}
+
 func TestBeaconState_ValidatorByPubkey_Phase0(t *testing.T) {
 	testtmpl.VerifyBeaconStateValidatorByPubkey(t, func() (state.BeaconState, error) {
 		return InitializeFromProtoPhase0(&ethpb.BeaconState{})
@@ -96,5 +120,11 @@ func TestBeaconState_ValidatorByPubkey_Altair(t *testing.T) {
 func TestBeaconState_ValidatorByPubkey_Bellatrix(t *testing.T) {
 	testtmpl.VerifyBeaconStateValidatorByPubkey(t, func() (state.BeaconState, error) {
 		return InitializeFromProtoBellatrix(&ethpb.BeaconStateBellatrix{LatestExecutionPayloadHeader: &enginev1.ExecutionPayloadHeader{}})
+	})
+}
+
+func TestBeaconState_ValidatorByPubkey_Capella(t *testing.T) {
+	testtmpl.VerifyBeaconStateValidatorByPubkey(t, func() (state.BeaconState, error) {
+		return InitializeFromProtoCapella(&ethpb.BeaconStateCapella{})
 	})
 }

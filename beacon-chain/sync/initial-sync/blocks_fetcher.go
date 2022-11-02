@@ -6,8 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kevinms/leakybucket-go"
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blob"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blocks"
@@ -19,6 +18,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v3/config/params"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
+	leakybucket "github.com/prysmaticlabs/prysm/v3/container/leaky-bucket"
 	"github.com/prysmaticlabs/prysm/v3/crypto/rand"
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
 	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
@@ -60,6 +60,9 @@ var (
 	errMissingSidecar        = errors.New("block recieved without sidecar")
 	errUnexpectedSidecar     = errors.New("received unexpected sidecar")
 )
+
+// Period to calculate expected limit for a single peer.
+var blockLimiterPeriod = 30 * time.Second
 
 // blocksFetcherConfig is a config to setup the block fetcher.
 type blocksFetcherConfig struct {
@@ -122,7 +125,7 @@ func newBlocksFetcher(ctx context.Context, cfg *blocksFetcherConfig) *blocksFetc
 	// Allow fetcher to go almost to the full burst capacity (less a single batch).
 	rateLimiter := leakybucket.NewCollector(
 		float64(blocksPerSecond), int64(allowedBlocksBurst-blocksPerSecond),
-		false /* deleteEmptyBuckets */)
+		blockLimiterPeriod, false /* deleteEmptyBuckets */)
 
 	capacityWeight := cfg.peerFilterCapacityWeight
 	if capacityWeight >= 1 {

@@ -10,6 +10,7 @@ import (
 	fieldparams "github.com/prysmaticlabs/prysm/v3/config/fieldparams"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
+	enginev1 "github.com/prysmaticlabs/prysm/v3/proto/engine/v1"
 	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 )
 
@@ -48,8 +49,8 @@ type ReadOnlyBeaconState interface {
 	ReadOnlyBalances
 	ReadOnlyCheckpoint
 	ReadOnlyAttestations
-	InnerStateUnsafe() interface{}
-	CloneInnerState() interface{}
+	ToProtoUnsafe() interface{}
+	ToProto() interface{}
 	GenesisTime() uint64
 	GenesisValidatorsRoot() []byte
 	Slot() types.Slot
@@ -84,6 +85,10 @@ type WriteOnlyBeaconState interface {
 	UpdateSlashingsAtIndex(idx, val uint64) error
 	AppendHistoricalRoots(root [32]byte) error
 	SetLatestExecutionPayloadHeader(payload interfaces.ExecutionDataHeader) error
+	SetWithdrawalQueue(val []*enginev1.Withdrawal) error
+	AppendWithdrawal(val *enginev1.Withdrawal) error
+	SetNextWithdrawalIndex(i uint64) error
+	SetNextPartialWithdrawalValidatorIndex(i types.ValidatorIndex) error
 }
 
 // ReadOnlyValidator defines a struct which only has read access to validator methods.
@@ -95,6 +100,9 @@ type ReadOnlyValidator interface {
 	ExitEpoch() types.Epoch
 	PublicKey() [fieldparams.BLSPubkeyLength]byte
 	WithdrawalCredentials() []byte
+	HasETH1WithdrawalCredential() bool
+	IsFullyWithdrawable(types.Epoch) bool
+	IsPartiallyWithdrawable(uint64) bool
 	Slashed() bool
 	IsNil() bool
 }

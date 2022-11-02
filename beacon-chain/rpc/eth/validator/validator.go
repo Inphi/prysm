@@ -166,6 +166,7 @@ func (vs *Server) GetProposerDuties(ctx context.Context, req *ethpbv1.ProposerDu
 		pubkey48 := val.PublicKey()
 		pubkey := pubkey48[:]
 		for _, s := range ss {
+			vs.ProposerSlotIndexCache.SetProposerAndPayloadIDs(s, index, [8]byte{} /* payloadID */, [32]byte{} /* head root */)
 			duties = append(duties, &ethpbv1.ProposerDuty{
 				Pubkey:         pubkey,
 				ValidatorIndex: index,
@@ -181,6 +182,12 @@ func (vs *Server) GetProposerDuties(ctx context.Context, req *ethpbv1.ProposerDu
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Could not get dependent root: %v", err)
 	}
+
+	slot, err := slots.EpochStart(req.Epoch)
+	if err != nil {
+		return nil, err
+	}
+	vs.ProposerSlotIndexCache.PrunePayloadIDs(slot)
 
 	return &ethpbv1.ProposerDutiesResponse{
 		DependentRoot:       root,
@@ -270,6 +277,12 @@ func (vs *Server) GetSyncCommitteeDuties(ctx context.Context, req *ethpbv2.SyncC
 }
 
 // ProduceBlockV2 requests the beacon node to produce a valid unsigned beacon block, which can then be signed by a proposer and submitted.
+// By definition `/eth/v2/validator/blocks/{slot}`, does not produce block using mev-boost and relayer network.
+// The following endpoint states that the returned object is a BeaconBlock, not a BlindedBeaconBlock. As such, the block must return a full ExecutionPayload:
+// https://ethereum.github.io/beacon-APIs/?urls.primaryName=v2.3.0#/Validator/produceBlockV2
+//
+// To use mev-boost and relayer network. It's recommended to use the following endpoint:
+// https://github.com/ethereum/beacon-APIs/blob/master/apis/validator/blinded_block.yaml
 func (vs *Server) ProduceBlockV2(ctx context.Context, req *ethpbv1.ProduceBlockRequest) (*ethpbv2.ProduceBlockResponseV2, error) {
 	ctx, span := trace.StartSpan(ctx, "validator.ProduceBlockV2")
 	defer span.End()
@@ -283,6 +296,7 @@ func (vs *Server) ProduceBlockV2(ctx context.Context, req *ethpbv1.ProduceBlockR
 		Slot:         req.Slot,
 		RandaoReveal: req.RandaoReveal,
 		Graffiti:     req.Graffiti,
+		SkipMevBoost: true, // Skip mev-boost and relayer network
 	}
 	v1alpha1resp, err := vs.V1Alpha1Server.GetBeaconBlock(ctx, v1alpha1req)
 	if err != nil {
@@ -347,6 +361,12 @@ func (vs *Server) ProduceBlockV2(ctx context.Context, req *ethpbv1.ProduceBlockR
 // ProduceBlockV2SSZ requests the beacon node to produce a valid unsigned beacon block, which can then be signed by a proposer and submitted.
 //
 // The produced block is in SSZ form.
+// By definition `/eth/v2/validator/blocks/{slot}/ssz`, does not produce block using mev-boost and relayer network:
+// The following endpoint states that the returned object is a BeaconBlock, not a BlindedBeaconBlock. As such, the block must return a full ExecutionPayload:
+// https://ethereum.github.io/beacon-APIs/?urls.primaryName=v2.3.0#/Validator/produceBlockV2
+//
+// To use mev-boost and relayer network. It's recommended to use the following endpoint:
+// https://github.com/ethereum/beacon-APIs/blob/master/apis/validator/blinded_block.yaml
 func (vs *Server) ProduceBlockV2SSZ(ctx context.Context, req *ethpbv1.ProduceBlockRequest) (*ethpbv2.SSZContainer, error) {
 	ctx, span := trace.StartSpan(ctx, "validator.ProduceBlockV2SSZ")
 	defer span.End()
@@ -360,6 +380,7 @@ func (vs *Server) ProduceBlockV2SSZ(ctx context.Context, req *ethpbv1.ProduceBlo
 		Slot:         req.Slot,
 		RandaoReveal: req.RandaoReveal,
 		Graffiti:     req.Graffiti,
+		SkipMevBoost: true, // Skip mev-boost and relayer network
 	}
 	v1alpha1resp, err := vs.V1Alpha1Server.GetBeaconBlock(ctx, v1alpha1req)
 	if err != nil {
@@ -702,7 +723,7 @@ func (vs *Server) ProduceAttestationData(ctx context.Context, req *ethpbv1.Produ
 
 // GetAggregateAttestation aggregates all attestations matching the given attestation data root and slot, returning the aggregated result.
 func (vs *Server) GetAggregateAttestation(ctx context.Context, req *ethpbv1.AggregateAttestationRequest) (*ethpbv1.AggregateAttestationResponse, error) {
-	ctx, span := trace.StartSpan(ctx, "validator.GetAggregateAttestation")
+	_, span := trace.StartSpan(ctx, "validator.GetAggregateAttestation")
 	defer span.End()
 
 	allAtts := vs.AttestationsPool.AggregatedAttestations()

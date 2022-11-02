@@ -31,6 +31,7 @@ type executionPayloadHeader struct {
 	baseFeePerGas    []byte
 	blockHash        []byte
 	transactionsRoot []byte
+	withdrawalsRoot  []byte
 	excessDataGas    []byte
 }
 
@@ -158,6 +159,10 @@ func (e *executionPayloadHeader) PbGenericPayload() (*enginev1.ExecutionPayload,
 	return nil, ErrUnsupportedGetter
 }
 
+func (e *executionPayloadHeader) PbCapellaPayload() (*enginev1.ExecutionPayloadCapella, error) {
+	return nil, ErrUnsupportedGetter
+}
+
 func (e *executionPayloadHeader) PbEip4844Payload() (*enginev1.ExecutionPayload4844, error) {
 	return nil, ErrUnsupportedGetter
 }
@@ -172,6 +177,18 @@ func (e *executionPayloadHeader) PbGenericPayloadHeader() (*enginev1.ExecutionPa
 		return nil, err
 	}
 	return proto.(*enginev1.ExecutionPayloadHeader), nil
+}
+
+func (e *executionPayloadHeader) PbCapellaPayloadHeader() (*enginev1.ExecutionPayloadHeaderCapella, error) {
+	if e.version != version.Capella {
+		return nil, errNotSupported("PbCapellaPayloadHeader", e.version)
+	}
+
+	proto, err := e.Proto()
+	if err != nil {
+		return nil, err
+	}
+	return proto.(*enginev1.ExecutionPayloadHeaderCapella), nil
 }
 
 func (e *executionPayloadHeader) PbEip4844PayloadHeader() (*enginev1.ExecutionPayloadHeader4844, error) {
@@ -206,6 +223,25 @@ func (e *executionPayloadHeader) Proto() (proto.Message, error) {
 			BlockHash:        e.blockHash,
 			TransactionsRoot: e.transactionsRoot,
 		}, nil
+	case version.Capella:
+		return &enginev1.ExecutionPayloadHeader4844{
+			ParentHash:       e.parentHash,
+			FeeRecipient:     e.feeRecipient,
+			StateRoot:        e.stateRoot,
+			ReceiptsRoot:     e.receiptsRoot,
+			LogsBloom:        e.logsBloom,
+			PrevRandao:       e.prevRandao,
+			BlockNumber:      e.blockNumber,
+			GasLimit:         e.gasLimit,
+			GasUsed:          e.gasUsed,
+			Timestamp:        e.timestamp,
+			ExtraData:        e.extraData,
+			BaseFeePerGas:    e.baseFeePerGas,
+			BlockHash:        e.blockHash,
+			TransactionsRoot: e.transactionsRoot,
+			WithdrawalsRoot:  e.withdrawalsRoot,
+			ExcessDataGas:    e.excessDataGas,
+		}, nil
 	case version.EIP4844:
 		return &enginev1.ExecutionPayloadHeader4844{
 			ParentHash:       e.parentHash,
@@ -222,6 +258,7 @@ func (e *executionPayloadHeader) Proto() (proto.Message, error) {
 			BaseFeePerGas:    e.baseFeePerGas,
 			BlockHash:        e.blockHash,
 			TransactionsRoot: e.transactionsRoot,
+			WithdrawalsRoot:  e.withdrawalsRoot,
 			ExcessDataGas:    e.excessDataGas,
 		}, nil
 	default:
@@ -300,6 +337,20 @@ func (e *executionPayloadHeader) TransactionsRoot() []byte {
 }
 
 func (e *executionPayloadHeader) Transactions() ([][]byte, error) {
+	return nil, ErrUnsupportedGetter
+}
+
+// Withdrawals --
+func (e *executionPayloadHeader) WithdrawalsRoot() ([]byte, error) {
+	switch e.version {
+	case version.Capella, version.EIP4844:
+		return e.withdrawalsRoot, nil
+	default:
+		return nil, ErrUnsupportedGetter
+	}
+}
+
+func (e executionPayloadHeader) Withdrawals() ([]*enginev1.Withdrawal, error) {
 	return nil, ErrUnsupportedGetter
 }
 

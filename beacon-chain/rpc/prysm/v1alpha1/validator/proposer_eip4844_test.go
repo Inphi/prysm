@@ -16,6 +16,7 @@ import (
 	prysmtime "github.com/prysmaticlabs/prysm/v3/beacon-chain/core/time"
 	dbTest "github.com/prysmaticlabs/prysm/v3/beacon-chain/db/testing"
 	mockExecution "github.com/prysmaticlabs/prysm/v3/beacon-chain/execution/testing"
+	doublylinkedtree "github.com/prysmaticlabs/prysm/v3/beacon-chain/forkchoice/doubly-linked-tree"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/operations/attestations"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/operations/slashings"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/operations/synccommittee"
@@ -112,7 +113,7 @@ func TestServer_GetEip4844BeaconBlock_NoBlobKZGs(t *testing.T) {
 		AttPool:           attestations.NewPool(),
 		SlashingsPool:     slashings.NewPool(),
 		ExitPool:          voluntaryexits.NewPool(),
-		StateGen:          stategen.New(db),
+		StateGen:          stategen.New(db, doublylinkedtree.New(nil)),
 		SyncCommitteePool: synccommittee.NewStore(),
 		ExecutionEngineCaller: &mockExecution.EngineClient{
 			PayloadIDBytes:       &v1.PayloadIDBytes{1},
@@ -208,6 +209,7 @@ func TestServer_GetEip4844BeaconBlock_WithBlobKZGs(t *testing.T) {
 		PrevRandao:    random,
 		Timestamp:     uint64(tstamp.Unix()),
 		Transactions:  [][]byte{w.Bytes()},
+		Withdrawals:   nil,
 		ExcessDataGas: make([]byte, fieldparams.RootLength),
 	}
 
@@ -245,7 +247,7 @@ func TestServer_GetEip4844BeaconBlock_WithBlobKZGs(t *testing.T) {
 		AttPool:           attestations.NewPool(),
 		SlashingsPool:     slashings.NewPool(),
 		ExitPool:          voluntaryexits.NewPool(),
-		StateGen:          stategen.New(db),
+		StateGen:          stategen.New(db, doublylinkedtree.New(nil)),
 		SyncCommitteePool: synccommittee.NewStore(),
 		ExecutionEngineCaller: &mockExecution.EngineClient{
 			PayloadIDBytes:       &v1.PayloadIDBytes{1},
