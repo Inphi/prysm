@@ -61,7 +61,9 @@ func TestUpgradeToBellatrix(t *testing.T) {
 
 	header, err := mSt.LatestExecutionPayloadHeader()
 	require.NoError(t, err)
-	protoHeader, ok := header.Proto().(*enginev1.ExecutionPayloadHeader)
+	prot, err := header.Proto()
+	require.NoError(t, err)
+	protoHeader, ok := prot.(*enginev1.ExecutionPayloadHeader)
 	require.Equal(t, true, ok)
 
 	wanted := &enginev1.ExecutionPayloadHeader{
