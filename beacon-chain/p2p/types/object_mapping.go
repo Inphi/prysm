@@ -51,7 +51,15 @@ func InitializeDataMaps() {
 		},
 		bytesutil.ToBytes4(params.BeaconConfig().Eip4844ForkVersion): func() (interfaces.SignedBeaconBlock, error) {
 			return blocks.NewSignedBeaconBlock(
-				&ethpb.SignedBeaconBlockWithBlobKZGs{Block: &ethpb.BeaconBlockWithBlobKZGs{Body: &ethpb.BeaconBlockBodyWithBlobKZGs{ExecutionPayload: &enginev1.ExecutionPayload4844{}}}},
+				&ethpb.SignedBeaconBlockAndBlobsSidecar{
+					BeaconBlock: &ethpb.SignedBeaconBlockWithBlobKZGs{
+						Block: &ethpb.BeaconBlockWithBlobKZGs{
+							Body: &ethpb.BeaconBlockBodyWithBlobKZGs{
+								ExecutionPayload: &enginev1.ExecutionPayload4844{},
+							},
+						},
+					},
+				},
 			)
 		},
 	}

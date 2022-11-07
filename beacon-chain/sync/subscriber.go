@@ -123,9 +123,9 @@ func (s *Service) registerSubscribers(epoch types.Epoch, digest [4]byte) {
 	// EIP-4844 Fork Version
 	if epoch >= params.BeaconConfig().Eip4844ForkEpoch {
 		s.subscribe(
-			p2p.BlobsSubnetTopicFormat,
-			s.validateBlobsSidecarPubSub,
-			s.blobsSidecarSubscriber,
+			p2p.BlockAndBlobsSubnetTopicFormat,
+			s.validateBeaconBlockPubSub,
+			s.beaconBlockSubscriber,
 			digest,
 		)
 	}

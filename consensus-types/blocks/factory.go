@@ -55,7 +55,7 @@ func NewSignedBeaconBlock(i interface{}) (interfaces.SignedBeaconBlock, error) {
 		return initSignedBlockFromProtoCapella(b)
 	case *eth.GenericSignedBeaconBlock_Eip4844:
 		return initSignedBlockFromProtoEip4844(b.Eip4844)
-	case *eth.SignedBeaconBlockWithBlobKZGs:
+	case *eth.SignedBeaconBlockAndBlobsSidecar:
 		return initSignedBlockFromProtoEip4844(b)
 	default:
 		return nil, errors.Wrapf(ErrUnsupportedSignedBeaconBlock, "unable to create block from type %T", i)
@@ -88,9 +88,12 @@ func NewBeaconBlock(i interface{}) (interfaces.BeaconBlock, error) {
 	case *eth.BeaconBlockCapella:
 		return initBlockFromProtoCapella(b)
 	case *eth.GenericBeaconBlock_Eip4844:
-		return initBlockFromProtoEip4844(b.Eip4844)
-	case *eth.BeaconBlockWithBlobKZGs:
-		return initBlockFromProtoEip4844(b)
+		if b.Eip4844 == nil {
+			return nil, ErrNilObject
+		}
+		return initBlockFromProtoEip4844(b.Eip4844.BeaconBlock)
+	case *eth.BeaconBlockAndBlobsSidecar:
+		return initBlockFromProtoEip4844(b.BeaconBlock)
 	default:
 		return nil, errors.Wrapf(errUnsupportedBeaconBlock, "unable to create block from type %T", i)
 	}

@@ -48,14 +48,11 @@ message GenericSignedBeaconBlock {
         SignedBlindedBeaconBlockCapella blinded_capella = 6;
 
         // Representing a signed, eip4844 compatible fork beacon block.
-        SignedBeaconBlockWithBlobKZGs eip4844 = 7;
+        SignedBeaconBlockAndBlobsSidecar eip4844 = 7;
 
         // Representing a signed, eip4844 compatible fork blinded beacon block.
-        SignedBlindedBeaconBlockWithBlobKZGs blinded_eip4844 = 8;
+        SignedBlindedBeaconBlockAndBlobsSidecar blinded_eip4844 = 8;
     }
-
-    // Representing an eip4844 fork signed blobs sidecar.
-    SignedBlobsSidecar sidecar = 10;
 }
 
 message GenericBeaconBlock {
@@ -79,14 +76,11 @@ message GenericBeaconBlock {
         BlindedBeaconBlockCapella blinded_capella = 6;
 
         // Representing a post-eip4844 fork beacon block.
-        BeaconBlockWithBlobKZGs eip4844 = 7;
+        BeaconBlockAndBlobsSidecar eip4844 = 7;
 
         // Representing a post-eip4844 fork beacon block.
-        BlindedBeaconBlockWithBlobKZGs blinded_eip4844 = 8;
+        SignedBlindedBeaconBlockAndBlobsSidecar blinded_eip4844 = 8;
     }
-
-    // Representing an eip4844 fork blobs sidecar.
-    BlobsSidecar sidecar = 10;
 }
 
 // The Ethereum consensus beacon block. The message does not contain a validator signature.
@@ -579,16 +573,6 @@ message BlindedBeaconBlockBodyCapella {
     repeated SignedBLSToExecutionChange bls_to_execution_changes = 11 [(ethereum.eth.ext.ssz_max) = "16"];
 }
 
-message BeaconBlockWithBlobKZGsAndBlobsSidecar {
-    BeaconBlockWithBlobKZGs block = 1;
-    BlobsSidecar sidecar = 2;
-}
-
-message SignedBeaconBlockWithBlobKZGsAndBlobsSidecar {
-    SignedBeaconBlockWithBlobKZGs block = 1;
-    SignedBlobsSidecar sidecar = 2;
-}
-
 message ValidatorRegistrationV1 {
     bytes fee_recipient         = 1 [(ethereum.eth.ext.ssz_size) = "20"];
     uint64 gas_limit             = 2;
@@ -616,13 +600,16 @@ message SignedBuilderBid {
     bytes signature      = 2 [(ethereum.eth.ext.ssz_size) = "96"];
 }
 
-message SignedBeaconBlockWithBlobKZGs {
-    BeaconBlockWithBlobKZGs block = 1;
-    bytes signature = 2 [(ethereum.eth.ext.ssz_size) = "96"];
+message SignedBlindedBeaconBlockAndBlobsSidecar {
+    BlindedBeaconBlockWithBlobKZGs block = 1;
+    BlobsSidecar sidecar = 2;
 }
 
-message SignedBlindedBeaconBlockWithBlobKZGs {
-    BlindedBeaconBlockWithBlobKZGs block = 1;
+message SignedBeaconBlockWithBlobKZGs {
+    // The unsigned beacon block itself.
+    BeaconBlockWithBlobKZGs block = 1;
+
+    // 96 byte BLS signature from the validator that produced this block.
     bytes signature = 2 [(ethereum.eth.ext.ssz_size) = "96"];
 }
 
@@ -668,6 +655,22 @@ message BlindedBeaconBlockBodyWithBlobKZGs {
     SyncAggregate sync_aggregate = 9;
     ethereum.engine.v1.ExecutionPayloadHeader4844 execution_payload_header = 10;
     repeated bytes blob_kzgs = 11 [(ethereum.eth.ext.ssz_size) = "?,48", (ethereum.eth.ext.ssz_max)  = "16"];
+}
+
+message SignedBeaconBlockAndBlobsSidecar {
+    // Representing a post-eip4844 fork beacon block.
+    SignedBeaconBlockWithBlobKZGs beacon_block = 1;
+
+    // Representing a post-eip4844 fork blobs sidecar.
+    BlobsSidecar blobs_sidecar = 2;
+}
+
+message BeaconBlockAndBlobsSidecar {
+    // Representing a post-eip4844 fork beacon block.
+    BeaconBlockWithBlobKZGs beacon_block = 1;
+
+    // Representing a post-eip4844 fork blobs sidecar.
+    BlobsSidecar blobs_sidecar = 2;
 }
 
 message BlobsSidecar {

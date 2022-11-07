@@ -443,19 +443,19 @@ func initSignedBlockFromProtoCapella(pb *eth.SignedBeaconBlockCapella) (*SignedB
 	return b, nil
 }
 
-func initSignedBlockFromProtoEip4844(pb *eth.SignedBeaconBlockWithBlobKZGs) (*SignedBeaconBlock, error) {
-	if pb == nil {
+func initSignedBlockFromProtoEip4844(pb *eth.SignedBeaconBlockAndBlobsSidecar) (*SignedBeaconBlock, error) {
+	if pb == nil || pb.BeaconBlock == nil {
 		return nil, errNilBlock
 	}
 
-	block, err := initBlockFromProtoEip4844(pb.Block)
+	block, err := initBlockFromProtoEip4844(pb.BeaconBlock.Block)
 	if err != nil {
 		return nil, err
 	}
 	b := &SignedBeaconBlock{
 		version:   version.EIP4844,
 		block:     block,
-		signature: bytesutil.ToBytes96(pb.Signature),
+		signature: bytesutil.ToBytes96(pb.BeaconBlock.Signature),
 	}
 	return b, nil
 }
