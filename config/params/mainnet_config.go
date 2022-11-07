@@ -36,7 +36,7 @@ var mainnetNetworkConfig = &NetworkConfig{
 	AttestationPropagationSlotRange:  32,
 	MaxRequestBlocks:                 1 << 10,              // 1024
 	MaxRequestBlobsSidecars:          2 << 7,               // 128
-	MinEpochsForBlobsSidecarsRequest: types.Epoch(2 << 13), // 8192, 1.2 months
+	MinEpochsForBlobsSidecarsRequest: types.Epoch(2 << 12), // 4096, 18 days
 	TtfbTimeout:                      5 * time.Second,
 	RespTimeout:                      10 * time.Second,
 	MaximumGossipClockDisparity:      500 * time.Millisecond,
