@@ -108,7 +108,7 @@ func ValidateBlobsSidecar(slot types.Slot, root [32]byte, commitments [][]byte, 
 		return err
 	}
 
-	aggregatedPoly, err := vectorLinComb(sidecar.Blobs, rPowers)
+	aggregatedPoly, err := polyLinComb(sidecar.Blobs, rPowers)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func ValidateBlobsSidecar(slot types.Slot, root [32]byte, commitments [][]byte, 
 	var y bls.Fr
 	EvaluatePolyInEvaluationForm(&y, aggregatedPoly, &x)
 
-	b, err := verifyKZGProof(aggregatedPolyCommitment, &x, &y, sidecar.AggregatedProof)
+	b, err := kzg.VerifyKZGProof(bytesutil.ToBytes48(aggregatedPolyCommitment), &x, &y, bytesutil.ToBytes48(sidecar.AggregatedProof))
 	if err != nil {
 		return err
 	}
@@ -190,56 +190,26 @@ func linComb(commitments [][]byte, scalars []bls.Fr) ([]byte, error) {
 	return bls.ToCompressedG1(r), nil
 }
 
-// vectorLinComb implements the function vector_lincomb from the EIP-4844 spec
-func vectorLinComb(blobs []*v1.Blob, scalars []bls.Fr) ([]bls.Fr, error) {
-	r := make([]bls.Fr, params.FieldElementsPerBlob)
-	x := bls.Fr{}
-	var fe [32]byte
-	feSlice := fe[:]       // create a slice that is backed by a tmp [32]byte array
-	for v := range blobs { // iterate over blobs
-		blob := blobs[v].Blob
-		if len(blob) != params.FieldElementsPerBlob {
-			return nil, errors.New("blob is the wrong size")
-		}
-		for i := 0; i < params.FieldElementsPerBlob; i++ { // iterate over a blob's field elements
-			// copy the []byte field element from the blob into the tmp [32]byte array and then
-			// convert to bls.Fr.
-			copy(feSlice, blob[i])
-			ok := bls.FrFrom32(&x, fe)
+func polyLinComb(blobs []*v1.Blob, scalars []bls.Fr) ([]bls.Fr, error) {
+	out := make([][]bls.Fr, len(blobs))
+	for i := range blobs {
+		r := make([]bls.Fr, params.FieldElementsPerBlob)
+		blob := blobs[i].Blob
+		for j, fe := range blob {
+			ok := bls.FrFrom32(&r[j], bytesutil.ToBytes32(fe))
 			if !ok {
-				return nil, errors.New("couldn't convert blob data to field element")
+				return nil, errors.New("invalid value in blob")
 			}
-			bls.MulModFr(&x, &scalars[v], &x)
-			bls.AddModFr(&r[i], &r[i], &x)
 		}
+		out[i] = r
 	}
-	return r, nil
-}
-
-func blsModInv(out *big.Int, x *big.Int) {
-	if len(x.Bits()) != 0 { // if non-zero
-		out.ModInverse(x, &blsModulus)
-	}
+	return bls.PolyLinComb(out, scalars)
 }
 
 // Evaluate a polynomial (in evaluation form) at an arbitrary point `x`
 // Uses the barycentric formula.
 func EvaluatePolyInEvaluationForm(yFr *bls.Fr, poly []bls.Fr, x *bls.Fr) {
 	bls.EvaluatePolyInEvaluationForm(yFr, poly, x, rootsOfUnity, 0)
-}
-
-// verifyKZGProof implements verify_kzg_proof from the EIP-4844 spec
-func verifyKZGProof(polynomialKZG []byte, x *bls.Fr, y *bls.Fr, quotientKZG []byte) (bool, error) {
-	commitment, err := bls.FromCompressedG1(polynomialKZG)
-	if err != nil {
-		return false, err
-	}
-	proof, err := bls.FromCompressedG1(quotientKZG)
-	if err != nil {
-		return false, err
-	}
-	// TODO: have an implementation independent of geth's
-	return kzg.VerifyKzgProof(commitment, x, y, proof), nil
 }
 
 // hashToFr interprets hash value v as a little endian integer, and converts it to a BLS field
@@ -268,12 +238,4 @@ func bigToFr(fr *bls.Fr, b *big.Int) *bls.Fr {
 	// to protolambda/go-kzg enabling something more efficient.
 	bls.SetFr(fr, b.String())
 	return fr
-}
-
-// frToBig converts BLS field element fr into a bignum, storing it in b and returning it.
-func frToBig(b *big.Int, fr *bls.Fr) *big.Int {
-	// TODO: Conversion currently relies the string representation as an intermediary.  Submit a PR
-	// to protolambda/go-kzg enabling something more efficient.
-	b.SetString(bls.FrStr(fr), 10)
-	return b
 }
