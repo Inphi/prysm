@@ -23,7 +23,7 @@ func init() {
 var (
 	// BlockMap maps the fork-version to the underlying data type for that
 	// particular fork period.
-	BlockMap map[[4]byte]func() (interfaces.SignedBeaconBlock, error)
+	BlockMap map[[4]byte]func() (interfaces.SignedBeaconBlockAndBlobsSidecar, error)
 	// MetaDataMap maps the fork-version to the underlying data type for that
 	// particular fork period.
 	MetaDataMap map[[4]byte]func() metadata.Metadata

@@ -34,7 +34,6 @@ func EIP4844Config() *BeaconChainConfig {
 	cfg.Eip4844ForkVersion = []byte{0x83, 0x00, 0x0f, 0xfd}
 	cfg.TerminalTotalDifficulty = "2"
 	cfg.DepositContractAddress = "0x8A04d14125D0FDCDc742F4A05C051De07232EDa4"
-	cfg.DomainBlobsSidecar = [4]byte{0x0a, 0x00, 0x00, 0x00}
 	cfg.InitializeForkSchedule()
 	return cfg
 }

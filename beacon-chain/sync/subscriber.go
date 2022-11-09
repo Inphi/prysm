@@ -125,7 +125,7 @@ func (s *Service) registerSubscribers(epoch types.Epoch, digest [4]byte) {
 		s.subscribe(
 			p2p.BlockAndBlobsSubnetTopicFormat,
 			s.validateBeaconBlockPubSub,
-			s.beaconBlockSubscriber,
+			s.beaconBlockAndBlobsSidecarSubscriber,
 			digest,
 		)
 	}

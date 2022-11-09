@@ -11,6 +11,13 @@ import (
 	"github.com/prysmaticlabs/prysm/v3/runtime/version"
 )
 
+func BeaconBlockAndBlobsSidecarIsNil(b interfaces.SignedBeaconBlockAndBlobsSidecar) error {
+	if b == nil || b.IsNil() {
+		return ErrNilSignedBeaconBlock
+	}
+	return nil
+}
+
 // BeaconBlockIsNil checks if any composite field of input signed beacon block is nil.
 // Access to these nil fields will result in run time panic,
 // it is recommended to run these checks as first line of defense.

@@ -170,7 +170,6 @@ var mainnetBeaconConfig = &BeaconChainConfig{
 	DomainSyncCommittee:               bytesutil.Uint32ToBytes4(0x07000000),
 	DomainSyncCommitteeSelectionProof: bytesutil.Uint32ToBytes4(0x08000000),
 	DomainContributionAndProof:        bytesutil.Uint32ToBytes4(0x09000000),
-	DomainBlobsSidecar:                bytesutil.Uint32ToBytes4(0x10000000),
 	DomainApplicationMask:             bytesutil.Uint32ToBytes4(0x00000001),
 	DomainApplicationBuilder:          bytesutil.Uint32ToBytes4(0x00000001),
 	DomainBLSToExecutionChange:        bytesutil.Uint32ToBytes4(0x0A000000),

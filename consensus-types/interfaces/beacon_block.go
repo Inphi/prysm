@@ -10,6 +10,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type SignedBeaconBlockAndBlobsSidecar interface {
+	BeaconBlock() SignedBeaconBlock
+	BlobsSidecar(*ethpb.BlobsSidecar, error)
+	IsNil() bool
+	Copy() (SignedBeaconBlockAndBlobsSidecar, error)
+	Proto() (proto.Message, error)
+}
+
 // SignedBeaconBlock is an interface describing the method set of
 // a signed beacon block.
 type SignedBeaconBlock interface {

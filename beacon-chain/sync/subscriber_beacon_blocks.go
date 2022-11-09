@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 
+	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blob"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/helpers"
@@ -69,6 +70,10 @@ func (s *Service) beaconBlockSubscriber(ctx context.Context, msg proto.Message) 
 		return err
 	}
 	return err
+}
+
+func (s *Service) beaconBlockAndBlobsSidecarSubscriber(ctx context.Context, msg proto.Message) error {
+	return errors.New("unimplemented")
 }
 
 // The input attestations are seen by the network, this deletes them from pool
