@@ -23,7 +23,7 @@ func init() {
 var (
 	// BlockMap maps the fork-version to the underlying data type for that
 	// particular fork period.
-	BlockMap map[[4]byte]func() (interfaces.SignedBeaconBlockAndBlobsSidecar, error)
+	BlockMap map[[4]byte]func() (interfaces.SignedBeaconBlock, error)
 	// MetaDataMap maps the fork-version to the underlying data type for that
 	// particular fork period.
 	MetaDataMap map[[4]byte]func() metadata.Metadata
@@ -47,19 +47,6 @@ func InitializeDataMaps() {
 		bytesutil.ToBytes4(params.BeaconConfig().BellatrixForkVersion): func() (interfaces.SignedBeaconBlock, error) {
 			return blocks.NewSignedBeaconBlock(
 				&ethpb.SignedBeaconBlockBellatrix{Block: &ethpb.BeaconBlockBellatrix{Body: &ethpb.BeaconBlockBodyBellatrix{ExecutionPayload: &enginev1.ExecutionPayload{}}}},
-			)
-		},
-		bytesutil.ToBytes4(params.BeaconConfig().Eip4844ForkVersion): func() (interfaces.SignedBeaconBlock, error) {
-			return blocks.NewSignedBeaconBlock(
-				&ethpb.SignedBeaconBlockAndBlobsSidecar{
-					BeaconBlock: &ethpb.SignedBeaconBlockWithBlobKZGs{
-						Block: &ethpb.BeaconBlockWithBlobKZGs{
-							Body: &ethpb.BeaconBlockBodyWithBlobKZGs{
-								ExecutionPayload: &enginev1.ExecutionPayload4844{},
-							},
-						},
-					},
-				},
 			)
 		},
 	}

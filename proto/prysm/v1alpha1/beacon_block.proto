@@ -79,7 +79,7 @@ message GenericBeaconBlock {
         BeaconBlockAndBlobsSidecar eip4844 = 7;
 
         // Representing a post-eip4844 fork beacon block.
-        SignedBlindedBeaconBlockAndBlobsSidecar blinded_eip4844 = 8;
+        BlindedBeaconBlockAndBlobsSidecar blinded_eip4844 = 8;
     }
 }
 
@@ -601,6 +601,11 @@ message SignedBuilderBid {
 }
 
 message SignedBlindedBeaconBlockAndBlobsSidecar {
+    SignedBlindedBeaconBlockWithBlobKZGs block = 1;
+    BlobsSidecar sidecar = 2;
+}
+
+message BlindedBeaconBlockAndBlobsSidecar {
     BlindedBeaconBlockWithBlobKZGs block = 1;
     BlobsSidecar sidecar = 2;
 }
@@ -619,6 +624,14 @@ message BeaconBlockWithBlobKZGs {
     bytes parent_root = 3 [(ethereum.eth.ext.ssz_size) = "32"];
     bytes state_root = 4 [(ethereum.eth.ext.ssz_size) = "32"];
     BeaconBlockBodyWithBlobKZGs body = 5;
+}
+
+message SignedBlindedBeaconBlockWithBlobKZGs {
+    // The unsigned blinded beacon block itself.
+    BlindedBeaconBlockWithBlobKZGs block = 1;
+
+    // 96 byte BLS signature from the validator that produced this blinded block.
+    bytes signature = 2 [(ethereum.eth.ext.ssz_size) = "96"];
 }
 
 message BlindedBeaconBlockWithBlobKZGs {
@@ -678,11 +691,6 @@ message BlobsSidecar {
     uint64 beacon_block_slot = 2 [(ethereum.eth.ext.cast_type) = "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives.Slot"];
     repeated ethereum.engine.v1.Blob blobs = 3 [(ethereum.eth.ext.ssz_max)  = "16"];
     bytes aggregated_proof = 4 [(ethereum.eth.ext.ssz_size) = "48"];
-}
-
-message SignedBlobsSidecar {
-    BlobsSidecar message = 1;
-    bytes signature = 2 [(ethereum.eth.ext.ssz_size) = "96"];
 }
 
 // BlobsAndCommitments contains the data we must merkelize in order to compute the "r" value during

@@ -3,16 +3,13 @@ package sync
 import (
 	"context"
 	"encoding/hex"
-	"math"
 	"sort"
 	"sync"
 	"time"
 
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/async"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain"
-	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blob"
 	p2ptypes "github.com/prysmaticlabs/prysm/v3/beacon-chain/p2p/types"
 	"github.com/prysmaticlabs/prysm/v3/config/params"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
@@ -22,7 +19,6 @@ import (
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
 	"github.com/prysmaticlabs/prysm/v3/encoding/ssz/equality"
 	"github.com/prysmaticlabs/prysm/v3/monitoring/tracing"
-	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v3/time/slots"
 	"github.com/sirupsen/logrus"
 	"github.com/trailofbits/go-mutexasserts"
@@ -33,6 +29,8 @@ var processPendingBlocksPeriod = slots.DivideSlotBy(3 /* times per slot */)
 
 const maxPeerRequest = 50
 const numOfTries = 5
+
+// TODO(EIP-4844): Revise this for Blocks containing Sidecars
 const maxBlocksPerSlot = 3
 
 // processes pending blocks queue on every processPendingBlocksPeriod
@@ -62,8 +60,10 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 		return errors.Wrap(err, "could not validate pending slots")
 	}
 	ss := s.sortedPendingSlots()
-	var parentRoots [][32]byte
-	missingSidecarRefs := make(map[types.Slot][][32]byte)
+	var (
+		parentRoots [][32]byte
+		parentSlots []types.Slot
+	)
 
 	span.AddAttributes(
 		trace.Int64Attribute("numSlots", int64(len(ss))),
@@ -83,7 +83,6 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 
 		s.pendingQueueLock.RLock()
 		bs := s.pendingBlocksInCache(slot)
-		sidecars := s.pendingSidecarsInCache(slot)
 		// Skip if there's no block in the queue.
 		if len(bs) == 0 {
 			s.pendingQueueLock.RUnlock()
@@ -93,7 +92,8 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 		s.pendingQueueLock.RUnlock()
 
 		// Loop through the pending queue and mark the potential parent blocks as seen.
-		for _, b := range bs {
+		for _, coupledBlk := range bs {
+			b := coupledBlk.UnwrapBlock()
 			if b == nil || b.IsNil() || b.Block().IsNil() {
 				span.End()
 				continue
@@ -106,38 +106,13 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 				return err
 			}
 
-			hasPeer := len(pids) != 0
-
-			var queuedSidecar *queuedBlobsSidecar
-			if blob.BlockContainsKZGs(b.Block()) {
-				queuedSidecar = findSidecarForBlock(b.Block(), blkRoot, sidecars)
-				if queuedSidecar == nil {
-					if hasPeer {
-						log.WithFields(logrus.Fields{
-							"currentSlot": b.Block().Slot(),
-							"blkRoot":     hex.EncodeToString(blkRoot[:]),
-						}).Debug("Requesting missing sidecar")
-						missingSidecarRefs[b.Block().Slot()] = append(missingSidecarRefs[slot], blkRoot)
-					}
-
-					span.End()
-					continue
-				}
-			}
-
 			inDB := s.cfg.beaconDB.HasBlock(ctx, blkRoot)
 			// No need to process the same block twice.
 			if inDB {
 				s.pendingQueueLock.Lock()
-				if err = s.deleteBlockFromPendingQueue(slot, b, blkRoot); err != nil {
+				if err = s.deleteBlockFromPendingQueue(slot, coupledBlk, blkRoot); err != nil {
 					s.pendingQueueLock.Unlock()
 					return err
-				}
-				if queuedSidecar != nil {
-					if err := s.deleteSidecarFromPendingQueue(slot, queuedSidecar); err != nil {
-						s.pendingQueueLock.Unlock()
-						return err
-					}
 				}
 				s.pendingQueueLock.Unlock()
 				span.End()
@@ -148,7 +123,7 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 			inPendingQueue := s.seenPendingBlocks[b.Block().ParentRoot()]
 			s.pendingQueueLock.RUnlock()
 
-			keepProcessing, err := s.checkIfBlockIsBad(ctx, span, slot, b, blkRoot, queuedSidecar)
+			keepProcessing, err := s.checkIfBlockIsBad(ctx, span, slot, coupledBlk, blkRoot)
 			if err != nil {
 				return err
 			}
@@ -157,6 +132,7 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 			}
 
 			parentInDb := s.cfg.beaconDB.HasBlock(ctx, b.Block().ParentRoot())
+			hasPeer := len(pids) != 0
 
 			// Only request for missing parent block if it's not in beaconDB, not in pending cache
 			// and has peer in the peer list.
@@ -167,6 +143,7 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 					"parentRoot":  hex.EncodeToString(bytesutil.Trunc(parentRoot[:])),
 				}).Debug("Requesting parent block")
 				parentRoots = append(parentRoots, b.Block().ParentRoot())
+				parentSlots = append(parentSlots, b.Block().Slot())
 
 				span.End()
 				continue
@@ -189,33 +166,7 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 			default:
 			}
 
-			var sidecar *ethpb.BlobsSidecar
-			if queuedSidecar != nil {
-				// Only for gossiped sidecars that skipped validation
-				if queuedSidecar.sig != nil && !queuedSidecar.validated {
-					res, err := s.validateBlobsSidecarSignature(ctx, b, queuedSidecar.AsSignedBlobsSidecar())
-					if err != nil || res != pubsub.ValidationAccept {
-						tracing.AnnotateError(span, err)
-						span.End()
-						continue
-					}
-				}
-
-				sidecar = queuedSidecar.s
-				kzgs, err := b.Block().Body().BlobKzgs()
-				// an error shouldn't happen! A non-nil sidecar means we're dealing with a EIP-4844 block
-				if err != nil {
-					log.WithError(err).Errorf("Could not retrieve blob kzgs from block %d", b.Block().Slot())
-					tracing.AnnotateError(span, err)
-					span.End()
-					continue
-				}
-				if err := blob.ValidateBlobsSidecar(b.Block().Slot(), blkRoot, kzgs, queuedSidecar.s); err != nil {
-					log.WithError(err).Debugf("Could not verify sidecar from slot %d", b.Block().Slot())
-				}
-			}
-
-			if err := s.cfg.chain.ReceiveBlock(ctx, b, blkRoot, sidecar); err != nil {
+			if err := s.cfg.chain.ReceiveBlock(ctx, coupledBlk, blkRoot); err != nil {
 				if blockchain.IsInvalidBlock(err) {
 					r := blockchain.InvalidBlockRoot(err)
 					if r != [32]byte{} {
@@ -242,25 +193,12 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 				if err := s.cfg.p2p.Broadcast(ctx, pb); err != nil {
 					log.WithError(err).Debug("Could not broadcast block")
 				}
-				if queuedSidecar != nil {
-					if queuedSidecar.IsSigned() {
-						if err := s.cfg.p2p.Broadcast(ctx, queuedSidecar.AsSignedBlobsSidecar()); err != nil {
-							log.WithError(err).Debug("Could not broadcast sidecar")
-						}
-					}
-				}
 			}
 
 			s.pendingQueueLock.Lock()
-			if err := s.deleteBlockFromPendingQueue(slot, b, blkRoot); err != nil {
+			if err := s.deleteBlockFromPendingQueue(slot, coupledBlk, blkRoot); err != nil {
 				s.pendingQueueLock.Unlock()
 				return err
-			}
-			if queuedSidecar != nil {
-				if err := s.deleteSidecarFromPendingQueue(slot, queuedSidecar); err != nil {
-					s.pendingQueueLock.Unlock()
-					return err
-				}
 			}
 			s.pendingQueueLock.Unlock()
 
@@ -273,23 +211,17 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 		}
 	}
 
-	// TODO(EIP-4844): Rework this to send blocks and sidecar requests in lock-step. It's a more robust way of handling partial failures
-	var err error
-	if err = s.sendBatchRootRequest(ctx, parentRoots, randGen); err == nil {
-		err = s.sendBatchSidecarRequest(ctx, missingSidecarRefs, randGen)
-	}
-	return err
+	return s.sendBatchRootRequest(ctx, parentRoots, parentSlots, randGen)
 }
 
 func (s *Service) checkIfBlockIsBad(
 	ctx context.Context,
 	span *trace.Span,
 	slot types.Slot,
-	b interfaces.SignedBeaconBlock,
+	b interfaces.CoupledBeaconBlock,
 	blkRoot [32]byte,
-	queuedSidecar *queuedBlobsSidecar,
 ) (keepProcessing bool, err error) {
-	parentIsBad := s.hasBadBlock(b.Block().ParentRoot())
+	parentIsBad := s.hasBadBlock(b.UnwrapBlock().Block().ParentRoot())
 	blockIsBad := s.hasBadBlock(blkRoot)
 	// Check if parent is a bad block.
 	if parentIsBad || blockIsBad {
@@ -303,12 +235,6 @@ func (s *Service) checkIfBlockIsBad(
 			s.pendingQueueLock.Unlock()
 			return false, err
 		}
-		if queuedSidecar != nil {
-			if err := s.deleteSidecarFromPendingQueue(slot, queuedSidecar); err != nil {
-				s.pendingQueueLock.Unlock()
-				return false, err
-			}
-		}
 		s.pendingQueueLock.Unlock()
 		span.End()
 		return false, nil
@@ -317,12 +243,15 @@ func (s *Service) checkIfBlockIsBad(
 	return true, nil
 }
 
-func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, randGen *rand.Rand) error {
+func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, rootSlots []types.Slot, randGen *rand.Rand) error {
 	ctx, span := trace.StartSpan(ctx, "sendBatchRootRequest")
 	defer span.End()
 
 	if len(roots) == 0 {
 		return nil
+	}
+	if len(roots) != len(rootSlots) {
+		return errors.New("length of roots must equal length of slotsd")
 	}
 	cp := s.cfg.chain.FinalizedCheckpt()
 	_, bestPeers := s.cfg.p2p.Peers().BestFinalized(maxPeerRequest, cp.Epoch)
@@ -330,18 +259,41 @@ func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, ra
 		return nil
 	}
 	roots = s.dedupRoots(roots)
+
+	var (
+		virginRoots  [][32]byte
+		coupledRoots [][32]byte
+	)
+	for i := range roots {
+		if params.BeaconConfig().Eip4844ForkEpoch <= slots.ToEpoch(rootSlots[i]) {
+			coupledRoots = append(coupledRoots, roots[i])
+		} else {
+			virginRoots = append(virginRoots, roots[i])
+		}
+	}
+
 	// Randomly choose a peer to query from our best peers. If that peer cannot return
 	// all the requested blocks, we randomly select another peer.
 	pid := bestPeers[randGen.Int()%len(bestPeers)]
 	for i := 0; i < numOfTries; i++ {
-		req := p2ptypes.BeaconBlockByRootsReq(roots)
+		virginReq := p2ptypes.BeaconBlockByRootsReq(virginRoots)
 		if len(roots) > int(params.BeaconNetworkConfig().MaxRequestBlocks) {
-			req = roots[:params.BeaconNetworkConfig().MaxRequestBlocks]
+			virginReq = virginRoots[:params.BeaconNetworkConfig().MaxRequestBlocks]
 		}
-		if err := s.sendRecentBeaconBlocksRequest(ctx, &req, pid); err != nil {
+		if err := s.sendRecentBeaconBlocksRequest(ctx, &virginReq, pid); err != nil {
 			tracing.AnnotateError(span, err)
 			log.WithError(err).Debug("Could not send recent block request")
 		}
+
+		coupledReq := p2ptypes.BeaconBlockAndBlobsSidecarByRootsReq(coupledRoots)
+		if len(roots) > int(params.BeaconNetworkConfig().MaxRequestBlocks) {
+			coupledReq = coupledRoots[:params.BeaconNetworkConfig().MaxRequestBlocks]
+		}
+		if err := s.sendRecentBeaconBlocksAndBlobsSidecarsRequest(ctx, &coupledReq, pid); err != nil {
+			tracing.AnnotateError(span, err)
+			log.WithError(err).Debug("Could not send recent block request")
+		}
+
 		newRoots := make([][32]byte, 0, len(roots))
 		s.pendingQueueLock.RLock()
 		for _, rt := range roots {
@@ -356,71 +308,6 @@ func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, ra
 		// Choosing a new peer with the leftover set of
 		// roots to request.
 		roots = newRoots
-		pid = bestPeers[randGen.Int()%len(bestPeers)]
-	}
-	return nil
-}
-
-func (s *Service) sendBatchSidecarRequest(ctx context.Context, reqs map[types.Slot][][32]byte, randGen *rand.Rand) error {
-	ctx, span := trace.StartSpan(ctx, "sendBatchSidecarRequests")
-	defer span.End()
-
-	if len(reqs) == 0 {
-		return nil
-	}
-	cp := s.cfg.chain.FinalizedCheckpt()
-	_, bestPeers := s.cfg.p2p.Peers().BestFinalized(maxPeerRequest, cp.Epoch)
-	if len(bestPeers) == 0 {
-		return nil
-	}
-
-	makeSidecarRangeRequest := func(reqs map[types.Slot][][32]byte) *ethpb.BlobsSidecarsByRangeRequest {
-		start := types.Slot(math.MaxUint64)
-		end := types.Slot(0)
-		for slot := range reqs {
-			if slot < start {
-				start = slot
-			}
-			if slot > end {
-				end = slot
-			}
-		}
-		count := uint64(end.SubSlot(start).Add(1))
-		if count > params.BeaconNetworkConfig().MaxRequestBlobsSidecars {
-			count = params.BeaconNetworkConfig().MaxRequestBlobsSidecars
-		}
-		return &ethpb.BlobsSidecarsByRangeRequest{
-			StartSlot: start,
-			Count:     count,
-		}
-	}
-
-	// Randomly choose a peer to query from our best peers. If that peer cannot return
-	// all the requested blocks, we randomly select another peer.
-	pid := bestPeers[randGen.Int()%len(bestPeers)]
-	for i := 0; i < numOfTries; i++ {
-		sidecarReq := makeSidecarRangeRequest(reqs)
-		if err := s.sendRecentBlobSidecarsRequest(ctx, sidecarReq, pid); err != nil {
-			tracing.AnnotateError(span, err)
-			log.WithError(err).Debugf("Could not send recent block request")
-		}
-
-		newReqs := make(map[types.Slot][][32]byte)
-		s.pendingQueueLock.RLock()
-		for slot, roots := range reqs {
-			for _, rt := range roots {
-				if !s.seenPendingSidecars[rt] {
-					newReqs[slot] = append(newReqs[slot], rt)
-				}
-			}
-		}
-		s.pendingQueueLock.RUnlock()
-		if len(newReqs) == 0 {
-			break
-		}
-		// Choosing a new peer with the leftover set of
-		// roots to request.
-		reqs = newReqs
 		pid = bestPeers[randGen.Int()%len(bestPeers)]
 	}
 	return nil
@@ -445,7 +332,7 @@ func (s *Service) sortedPendingSlots() []types.Slot {
 
 // validatePendingSlots validates the pending blocks
 // by their slot. If they are before the current finalized
-// checkpoint, these blocks and their sidecars are removed from the queue.
+// checkpoint, these blocks are removed from the queue.
 func (s *Service) validatePendingSlots() error {
 	s.pendingQueueLock.Lock()
 	defer s.pendingQueueLock.Unlock()
@@ -463,8 +350,9 @@ func (s *Service) validatePendingSlots() error {
 		for _, b := range blks {
 			epoch := slots.ToEpoch(slot)
 			// remove all descendant blocks of old blocks
-			if oldBlockRoots[b.Block().ParentRoot()] {
-				root, err := b.Block().HashTreeRoot()
+			blk := b.UnwrapBlock()
+			if oldBlockRoots[blk.Block().ParentRoot()] {
+				root, err := blk.Block().HashTreeRoot()
 				if err != nil {
 					return err
 				}
@@ -476,7 +364,7 @@ func (s *Service) validatePendingSlots() error {
 			}
 			// don't process old blocks
 			if finalizedEpoch > 0 && epoch <= finalizedEpoch {
-				blkRoot, err := b.Block().HashTreeRoot()
+				blkRoot, err := blk.Block().HashTreeRoot()
 				if err != nil {
 					return err
 				}
@@ -487,21 +375,6 @@ func (s *Service) validatePendingSlots() error {
 			}
 		}
 	}
-
-	items = s.slotToPendingSidecars.Items()
-	for k := range items {
-		slot := cacheKeyToSlot(k)
-		sidecars := s.pendingSidecarsInCache(slot)
-		for _, sc := range sidecars {
-			epoch := slots.ToEpoch(slot)
-			if finalizedEpoch > 0 && epoch <= finalizedEpoch {
-				if err := s.deleteSidecarFromPendingQueue(slot, sc); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -510,13 +383,11 @@ func (s *Service) clearPendingSlots() {
 	defer s.pendingQueueLock.Unlock()
 	s.slotToPendingBlocks.Flush()
 	s.seenPendingBlocks = make(map[[32]byte]bool)
-	s.slotToPendingSidecars.Flush()
-	s.seenPendingSidecars = make(map[[32]byte]bool)
 }
 
 // Delete block from the list from the pending queue using the slot as key.
 // Note: this helper is not thread safe.
-func (s *Service) deleteBlockFromPendingQueue(slot types.Slot, b interfaces.SignedBeaconBlock, r [32]byte) error {
+func (s *Service) deleteBlockFromPendingQueue(slot types.Slot, b interfaces.CoupledBeaconBlock, r [32]byte) error {
 	mutexasserts.AssertRWMutexLocked(&s.pendingQueueLock)
 
 	blks := s.pendingBlocksInCache(slot)
@@ -525,17 +396,17 @@ func (s *Service) deleteBlockFromPendingQueue(slot types.Slot, b interfaces.Sign
 	}
 
 	// Defensive check to ignore nil blocks
-	if err := blocks.BeaconBlockIsNil(b); err != nil {
+	if err := blocks.CoupledBeaconBlockIsNil(b); err != nil {
 		return err
 	}
 
-	newBlks := make([]interfaces.SignedBeaconBlock, 0, len(blks))
+	newBlks := make([]interfaces.CoupledBeaconBlock, 0, len(blks))
 	for _, blk := range blks {
-		blkPb, err := blk.Proto()
+		blkPb, err := blk.UnwrapBlock().Proto()
 		if err != nil {
 			return err
 		}
-		bPb, err := b.Proto()
+		bPb, err := b.UnwrapBlock().Proto()
 		if err != nil {
 			return err
 		}
@@ -561,7 +432,7 @@ func (s *Service) deleteBlockFromPendingQueue(slot types.Slot, b interfaces.Sign
 
 // Insert block to the list in the pending queue using the slot as key.
 // Note: this helper is not thread safe.
-func (s *Service) insertBlockToPendingQueue(_ types.Slot, b interfaces.SignedBeaconBlock, r [32]byte) error {
+func (s *Service) insertBlockToPendingQueue(_ types.Slot, b interfaces.CoupledBeaconBlock, r [32]byte) error {
 	mutexasserts.AssertRWMutexLocked(&s.pendingQueueLock)
 
 	if s.seenPendingBlocks[r] {
@@ -577,33 +448,33 @@ func (s *Service) insertBlockToPendingQueue(_ types.Slot, b interfaces.SignedBea
 }
 
 // This returns signed beacon blocks given input key from slotToPendingBlocks.
-func (s *Service) pendingBlocksInCache(slot types.Slot) []interfaces.SignedBeaconBlock {
+func (s *Service) pendingBlocksInCache(slot types.Slot) []interfaces.CoupledBeaconBlock {
 	k := slotToCacheKey(slot)
 	value, ok := s.slotToPendingBlocks.Get(k)
 	if !ok {
-		return []interfaces.SignedBeaconBlock{}
+		return []interfaces.CoupledBeaconBlock{}
 	}
-	blks, ok := value.([]interfaces.SignedBeaconBlock)
+	blks, ok := value.([]interfaces.CoupledBeaconBlock)
 	if !ok {
-		return []interfaces.SignedBeaconBlock{}
+		return []interfaces.CoupledBeaconBlock{}
 	}
 	return blks
 }
 
 // This adds input signed beacon block to slotToPendingBlocks cache.
-func (s *Service) addPendingBlockToCache(b interfaces.SignedBeaconBlock) error {
-	if err := blocks.BeaconBlockIsNil(b); err != nil {
+func (s *Service) addPendingBlockToCache(b interfaces.CoupledBeaconBlock) error {
+	if err := blocks.CoupledBeaconBlockIsNil(b); err != nil {
 		return err
 	}
 
-	blks := s.pendingBlocksInCache(b.Block().Slot())
+	blks := s.pendingBlocksInCache(b.UnwrapBlock().Block().Slot())
 
 	if len(blks) >= maxBlocksPerSlot {
 		return nil
 	}
 
 	blks = append(blks, b)
-	k := slotToCacheKey(b.Block().Slot())
+	k := slotToCacheKey(b.UnwrapBlock().Block().Slot())
 	s.slotToPendingBlocks.Set(k, blks, pendingBlockExpTime)
 	return nil
 }
@@ -624,17 +495,4 @@ func cacheKeyToSlot(s string) types.Slot {
 func slotToCacheKey(s types.Slot) string {
 	b := bytesutil.SlotToBytesBigEndian(s)
 	return string(b)
-}
-
-func findSidecarForBlock(b interfaces.BeaconBlock, blkRoot [32]byte, sidecars []*queuedBlobsSidecar) *queuedBlobsSidecar {
-	for _, s := range sidecars {
-		if b.Slot() != s.s.BeaconBlockSlot {
-			continue
-		}
-		if blkRoot != bytesutil.ToBytes32(s.s.BeaconBlockRoot) {
-			continue
-		}
-		return s
-	}
-	return nil
 }

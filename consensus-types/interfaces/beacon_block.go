@@ -10,12 +10,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type SignedBeaconBlockAndBlobsSidecar interface {
-	BeaconBlock() SignedBeaconBlock
-	BlobsSidecar(*ethpb.BlobsSidecar, error)
+// CoupledBeaconBlock is a SignedBeaconBlock that also provides its associated BlobsSidecar
+type CoupledBeaconBlock interface {
+	// UnwrapBlock returns the underlying SignedBeaconBlock
+	UnwrapBlock() SignedBeaconBlock
+	// BlobsSidecar returns the BlobsSidecar associated with the beacon block, if it exists
+	BlobsSidecar() *ethpb.BlobsSidecar
 	IsNil() bool
-	Copy() (SignedBeaconBlockAndBlobsSidecar, error)
-	Proto() (proto.Message, error)
+	ssz.Marshaler
+	ssz.Unmarshaler
 }
 
 // SignedBeaconBlock is an interface describing the method set of
@@ -26,6 +29,7 @@ type SignedBeaconBlock interface {
 	IsNil() bool
 	Copy() (SignedBeaconBlock, error)
 	Proto() (proto.Message, error)
+	// TODO(EIP-4844): Remove this function
 	PbGenericBlock() (*ethpb.GenericSignedBeaconBlock, error)
 	PbPhase0Block() (*ethpb.SignedBeaconBlock, error)
 	PbAltairBlock() (*ethpb.SignedBeaconBlockAltair, error)

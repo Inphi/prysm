@@ -100,20 +100,6 @@ func (s *Service) blobsSidecarsByRangeRPCHandler(ctx context.Context, msg interf
 	return nil
 }
 
-// sendRecentBlobsSidecarsRequest retrieves sidecars and inserts them to the pending queue
-func (s *Service) sendRecentBlobSidecarsRequest(ctx context.Context, req *pb.BlobsSidecarsByRangeRequest, pid peer.ID) error {
-	ctx, cancel := context.WithTimeout(ctx, respTimeout)
-	defer cancel()
-
-	_, err := SendBlobsSidecarsByRangeRequest(ctx, s.cfg.chain, s.cfg.p2p, pid, req, func(sc *pb.BlobsSidecar) error {
-		s.pendingQueueLock.Lock()
-		s.insertSidecarToPendingQueue(&queuedBlobsSidecar{s: sc})
-		s.pendingQueueLock.Unlock()
-		return nil
-	})
-	return err
-}
-
 func SendBlobsSidecarsByRangeRequest(
 	ctx context.Context, chain blockchain.ChainInfoFetcher, p2pProvider p2p.P2P, pid peer.ID,
 	req *pb.BlobsSidecarsByRangeRequest, sidecarProcessor BlobsSidecarProcessor) ([]*pb.BlobsSidecar, error) {

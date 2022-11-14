@@ -11,7 +11,17 @@ import (
 	"github.com/prysmaticlabs/prysm/v3/runtime/version"
 )
 
-func BeaconBlockAndBlobsSidecarIsNil(b interfaces.SignedBeaconBlockAndBlobsSidecar) error {
+func BeaconBlockAndBlobsSidecarIsNil(b interfaces.SignedBeaconBlock) error {
+	if b == nil || b.IsNil() {
+		return ErrNilSignedBeaconBlock
+	}
+	return nil
+}
+
+// CoupledBeaconBlockIsNil checks if any composite field of input signed beacon block is nil.
+// Access to these nil fields will result in run time panic,
+// it is recommended to run these checks as first line of defense.
+func CoupledBeaconBlockIsNil(b interfaces.CoupledBeaconBlock) error {
 	if b == nil || b.IsNil() {
 		return ErrNilSignedBeaconBlock
 	}
@@ -748,4 +758,82 @@ func (b *BeaconBlockBody) HashTreeRoot() ([field_params.RootLength]byte, error) 
 	default:
 		return [field_params.RootLength]byte{}, errIncorrectBodyVersion
 	}
+}
+
+func (b *CoupledBeaconBlock) UnwrapBlock() interfaces.SignedBeaconBlock {
+	return b.block
+}
+
+// BlobsSidecar returns the sidecar attached to the block, if applicable
+func (b *CoupledBeaconBlock) BlobsSidecar() *eth.BlobsSidecar {
+	return b.sidecar
+}
+
+func (b *CoupledBeaconBlock) IsNil() bool {
+	return b == nil || b.block.IsNil()
+}
+
+// MarshalSSZ marshals the signed beacon block to its relevant ssz form.
+func (b *CoupledBeaconBlock) MarshalSSZ() ([]byte, error) {
+	if b.sidecar == nil {
+		return b.block.MarshalSSZ()
+	}
+
+	pbBlock, err := b.block.PbEip4844Block()
+	if err != nil {
+		return nil, err
+	}
+	pb := &eth.SignedBeaconBlockAndBlobsSidecar{BeaconBlock: pbBlock, BlobsSidecar: b.sidecar}
+	return pb.MarshalSSZ()
+}
+
+// MarshalSSZTo marshals the signed beacon block's ssz
+// form to the provided byte buffer.
+func (b *CoupledBeaconBlock) MarshalSSZTo(dst []byte) ([]byte, error) {
+	if b.sidecar == nil {
+		return b.block.MarshalSSZTo(dst)
+	}
+	pbBlock, err := b.block.PbEip4844Block()
+	if err != nil {
+		return nil, err
+	}
+	pb := &eth.SignedBeaconBlockAndBlobsSidecar{BeaconBlock: pbBlock, BlobsSidecar: b.sidecar}
+	return pb.MarshalSSZTo(dst)
+}
+
+// SizeSSZ returns the size of the serialized signed block
+//
+// WARNING: This function panics. It is required to change the signature
+// of fastssz's SizeSSZ() interface function to avoid panicking.
+// Changing the signature causes very problematic issues with wealdtech deps.
+// For the time being panicking is preferable.
+func (b *CoupledBeaconBlock) SizeSSZ() int {
+	if b.sidecar == nil {
+		return b.block.SizeSSZ()
+	}
+	pbBlock, err := b.block.PbEip4844Block()
+	if err != nil {
+		panic(err)
+	}
+	pb := &eth.SignedBeaconBlockAndBlobsSidecar{BeaconBlock: pbBlock, BlobsSidecar: b.sidecar}
+	return pb.SizeSSZ()
+}
+
+// UnmarshalSSZ unmarshals the signed beacon block from its relevant ssz form.
+func (b *CoupledBeaconBlock) UnmarshalSSZ(buf []byte) error {
+	if b.sidecar == nil {
+		return b.block.UnmarshalSSZ(buf)
+	}
+
+	// TODO(EIP-4844): Blinded EIP4844 blocks
+	pb := &eth.SignedBeaconBlockAndBlobsSidecar{}
+	if err := pb.UnmarshalSSZ(buf); err != nil {
+		return err
+	}
+	newBlock, err := initSignedBlockAndBlobsSidecarFromProtoEip4844(pb)
+	if err != nil {
+		return err
+	}
+	*b = *newBlock
+	return nil
 }

@@ -63,9 +63,14 @@ func newRateLimiter(p2pProvider p2p.P2P) *limiter {
 	// Collector for V2
 	blockCollectorV2 := leakybucket.NewCollector(allowedBlocksPerSecond, allowedBlocksBurst, blockBucketPeriod, false /* deleteEmptyBuckets */)
 
+	// TODO(EIP-4844): Revise rate limiting
+	blockAndBlobsSidecarCollectorV1 := leakybucket.NewCollector(allowedBlocksPerSecond, allowedBlocksBurst, blockBucketPeriod, false /* deleteEmptyBuckets */)
+
 	// BlocksByRoots requests
 	topicMap[addEncoding(p2p.RPCBlocksByRootTopicV1)] = blockCollector
 	topicMap[addEncoding(p2p.RPCBlocksByRootTopicV2)] = blockCollectorV2
+	// BlocksAndBlobsSidecarByRoots requests
+	topicMap[addEncoding(p2p.RPCBlocksAndBlobsSidecarsByRootTopicV1)] = blockAndBlobsSidecarCollectorV1
 
 	// BlockByRange requests
 	topicMap[addEncoding(p2p.RPCBlocksByRangeTopicV1)] = blockCollector

@@ -19,20 +19,20 @@ import (
 // chunkBlockWriter writes the given message as a chunked response to the given network
 // stream.
 // response_chunk  ::= <result> | <context-bytes> | <encoding-dependent-header> | <encoded-payload>
-func (s *Service) chunkBlockWriter(stream libp2pcore.Stream, blk interfaces.SignedBeaconBlock) error {
+func (s *Service) chunkBlockWriter(stream libp2pcore.Stream, blk interfaces.CoupledBeaconBlock) error {
 	SetStreamWriteDeadline(stream, defaultWriteDuration)
 	return WriteBlockChunk(stream, s.cfg.chain, s.cfg.p2p.Encoding(), blk)
 }
 
 // WriteBlockChunk writes block chunk object to stream.
 // response_chunk  ::= <result> | <context-bytes> | <encoding-dependent-header> | <encoded-payload>
-func WriteBlockChunk(stream libp2pcore.Stream, chain blockchain.ChainInfoFetcher, encoding encoder.NetworkEncoding, blk interfaces.SignedBeaconBlock) error {
+func WriteBlockChunk(stream libp2pcore.Stream, chain blockchain.ChainInfoFetcher, encoding encoder.NetworkEncoding, blk interfaces.CoupledBeaconBlock) error {
 	if _, err := stream.Write([]byte{responseCodeSuccess}); err != nil {
 		return err
 	}
 	var obtainedCtx []byte
 
-	switch blk.Version() {
+	switch blk.UnwrapBlock().Version() {
 	case version.Phase0:
 		valRoot := chain.GenesisValidatorsRoot()
 		digest, err := forks.ForkDigestFromEpoch(params.BeaconConfig().GenesisEpoch, valRoot[:])

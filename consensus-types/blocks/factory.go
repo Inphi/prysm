@@ -20,6 +20,9 @@ var (
 	// errUnsupportedBeaconBlockBody is returned when the struct type is not a supported beacon block body
 	// type.
 	errUnsupportedBeaconBlockBody = errors.New("unsupported beacon block body")
+	// errUnexpectedSidecarForBeaconBlock is returned by attempting to build a coupled beacon block using
+	//  a non-nil sidecar with an unsupported block type
+	errUnexpectedSidecarForBeaconBlock = errors.New("unexpected blobs sidecar for beacon block")
 	// ErrNilObject is returned in a constructor when the underlying object is nil.
 	ErrNilObject = errors.New("received nil object")
 	// ErrNilSignedBeaconBlock is returned when a nil signed beacon block is received.
@@ -54,12 +57,77 @@ func NewSignedBeaconBlock(i interface{}) (interfaces.SignedBeaconBlock, error) {
 	case *eth.SignedBeaconBlockCapella:
 		return initSignedBlockFromProtoCapella(b)
 	case *eth.GenericSignedBeaconBlock_Eip4844:
-		return initSignedBlockFromProtoEip4844(b.Eip4844)
+		if b.Eip4844 == nil {
+			return nil, ErrNilObject
+		}
+		return initSignedBlockFromProtoEip4844(b.Eip4844.BeaconBlock)
 	case *eth.SignedBeaconBlockAndBlobsSidecar:
+		return initSignedBlockFromProtoEip4844(b.BeaconBlock)
+	case *eth.SignedBeaconBlockWithBlobKZGs:
 		return initSignedBlockFromProtoEip4844(b)
 	default:
 		return nil, errors.Wrapf(ErrUnsupportedSignedBeaconBlock, "unable to create block from type %T", i)
 	}
+}
+
+func newSignedBeaconBlock(blk interfaces.SignedBeaconBlock) (*SignedBeaconBlock, error) {
+	pb, err := blk.Proto()
+	if err != nil {
+		return nil, err
+	}
+
+	switch blk.Version() {
+	case version.Phase0:
+		pb, ok := pb.(*eth.SignedBeaconBlock)
+		if !ok {
+			return nil, errIncorrectBlockVersion
+		}
+		return initSignedBlockFromProtoPhase0(pb)
+	case version.Altair:
+		pb, ok := pb.(*eth.SignedBeaconBlockAltair)
+		if !ok {
+			return nil, errIncorrectBlockVersion
+		}
+		return initSignedBlockFromProtoAltair(pb)
+	case version.Bellatrix:
+		if blk.IsBlinded() {
+			pb, ok := pb.(*eth.SignedBlindedBeaconBlockBellatrix)
+			if !ok {
+				return nil, errIncorrectBlockVersion
+			}
+			return initBlindedSignedBlockFromProtoBellatrix(pb)
+		}
+		pb, ok := pb.(*eth.SignedBeaconBlockBellatrix)
+		if !ok {
+			return nil, errIncorrectBlockVersion
+		}
+		return initSignedBlockFromProtoBellatrix(pb)
+	case version.Capella:
+		pb, ok := pb.(*eth.SignedBeaconBlockCapella)
+		if !ok {
+			return nil, errIncorrectBlockVersion
+		}
+		return initSignedBlockFromProtoCapella(pb)
+	case version.EIP4844:
+		pb, ok := pb.(*eth.SignedBeaconBlockWithBlobKZGs)
+		if !ok {
+			return nil, errIncorrectBlockVersion
+		}
+		return initSignedBlockFromProtoEip4844(pb)
+	default:
+		return nil, errUnsupportedBeaconBlock
+	}
+}
+
+func BuildCoupledBeaconBlock(blk interfaces.SignedBeaconBlock, sidecar *eth.BlobsSidecar) (interfaces.CoupledBeaconBlock, error) {
+	if blk.Version() != version.EIP4844 && sidecar != nil {
+		return nil, errUnexpectedSidecarForBeaconBlock
+	}
+	b, err := newSignedBeaconBlock(blk)
+	if err != nil {
+		return nil, err
+	}
+	return &CoupledBeaconBlock{b, sidecar}, nil
 }
 
 // NewBeaconBlock creates a beacon block from a protobuf beacon block.
@@ -88,12 +156,11 @@ func NewBeaconBlock(i interface{}) (interfaces.BeaconBlock, error) {
 	case *eth.BeaconBlockCapella:
 		return initBlockFromProtoCapella(b)
 	case *eth.GenericBeaconBlock_Eip4844:
-		if b.Eip4844 == nil {
-			return nil, ErrNilObject
-		}
-		return initBlockFromProtoEip4844(b.Eip4844.BeaconBlock)
+		return initBlockAndBlobsSidecarFromProtoEip4844(b.Eip4844)
 	case *eth.BeaconBlockAndBlobsSidecar:
-		return initBlockFromProtoEip4844(b.BeaconBlock)
+		return initBlockAndBlobsSidecarFromProtoEip4844(b)
+	case *eth.BeaconBlockWithBlobKZGs:
+		return initBlockFromProtoEip4844(b)
 	default:
 		return nil, errors.Wrapf(errUnsupportedBeaconBlock, "unable to create block from type %T", i)
 	}

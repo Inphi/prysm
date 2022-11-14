@@ -62,10 +62,11 @@ func (s *Service) validateBeaconBlockPubSub(ctx context.Context, pid peer.ID, ms
 	s.validateBlockLock.Lock()
 	defer s.validateBlockLock.Unlock()
 
-	blk, ok := m.(interfaces.SignedBeaconBlock)
+	coupledBlk, ok := m.(interfaces.CoupledBeaconBlock)
 	if !ok {
 		return pubsub.ValidationReject, errors.New("msg is not ethpb.SignedBeaconBlock")
 	}
+	blk := coupledBlk.UnwrapBlock()
 
 	if blk.IsNil() || blk.Block().IsNil() {
 		return pubsub.ValidationReject, errors.New("block.Block is nil")
@@ -185,6 +186,19 @@ func (s *Service) validateBeaconBlockPubSub(ctx context.Context, pid peer.ID, ms
 			log.WithError(err).WithFields(getBlockFields(blk)).Debug("Could not validate beacon block")
 			return pubsub.ValidationReject, err
 		}
+	}
+
+	if !blocks.IsPreEIP4844Version(blk.Version()) {
+		sidecar := coupledBlk.BlobsSidecar()
+		if sidecar == nil {
+			log.Error("BeaconBlockAndBlobsSidecar message does not contain sidecar")
+			return pubsub.ValidationIgnore, err
+		}
+		if result, err := s.validateBlobsSidecar(ctx, blk, sidecar); err != nil {
+			log.WithError(err).WithField("slot", sidecar.BeaconBlockSlot).Debug("invalid blobs sidecar")
+			return result, err
+		}
+		span.AddAttributes(trace.Int64Attribute("numBlobs", int64(len(sidecar.Blobs))))
 	}
 
 	// Record attribute of valid block.

@@ -31,6 +31,9 @@ const BeaconBlocksByRangeMessageName = "/beacon_blocks_by_range"
 // BeaconBlocksByRootsMessageName specifies the name for the beacon blocks by root message topic.
 const BeaconBlocksByRootsMessageName = "/beacon_blocks_by_root"
 
+// BeaconBlocksAndBlobsSidecarByRootsMessageName specifies the name for the beacon blocks and blobs sidecar by root message topic.
+const BeaconBlocksAndBlobsSidecarByRootsMessageName = "/beacon_block_and_blobs_sidecar_by_root"
+
 // PingMessageName Specifies the name for the ping message topic.
 const PingMessageName = "/ping"
 
@@ -56,6 +59,8 @@ const (
 	RPCMetaDataTopicV1 = protocolPrefix + MetadataMessageName + SchemaVersionV1
 	// RPCBlobsSidecarsByRangeTopicV1 defines the v1 topic for the blobs sidecars by range rpc method.
 	RPCBlobsSidecarsByRangeTopicV1 = protocolPrefix + BlobsSidecarsByRangeMessageName + SchemaVersionV1
+	// RPCBlocksAndBlobsSidecarByRootV1 defines the V1 topic for the blocks and blobs sidecar by root rpc method.
+	RPCBlocksAndBlobsSidecarsByRootTopicV1 = protocolPrefix + BeaconBlocksAndBlobsSidecarByRootsMessageName + SchemaVersionV1
 
 	// V2 RPC Topics
 	// RPCBlocksByRangeTopicV2 defines v2 the topic for the blocks by range rpc method.
@@ -90,6 +95,8 @@ var RPCTopicMappings = map[string]interface{}{
 	RPCMetaDataTopicV2: new(interface{}),
 	// RPC Blobs Sidecars By Range Message
 	RPCBlobsSidecarsByRangeTopicV1: new(pb.BlobsSidecarsByRangeRequest),
+	// RPC Block and Blobs Sidecar By Root Message
+	RPCBlocksAndBlobsSidecarsByRootTopicV1: new(p2ptypes.BeaconBlockAndBlobsSidecarByRootsReq),
 }
 
 // Maps all registered protocol prefixes.

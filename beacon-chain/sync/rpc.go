@@ -101,6 +101,10 @@ func (s *Service) registerRPCHandlersEIP4844() {
 		p2p.RPCBlobsSidecarsByRangeTopicV1,
 		s.blobsSidecarsByRangeRPCHandler,
 	)
+	s.registerRPC(
+		p2p.RPCBlocksAndBlobsSidecarsByRootTopicV1,
+		s.beaconBlocksAndBlobsSidecarsRootRPCHandler,
+	)
 }
 
 // Remove all v1 Stream handlers that are no longer supported

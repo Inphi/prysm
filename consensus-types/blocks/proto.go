@@ -443,19 +443,35 @@ func initSignedBlockFromProtoCapella(pb *eth.SignedBeaconBlockCapella) (*SignedB
 	return b, nil
 }
 
-func initSignedBlockFromProtoEip4844(pb *eth.SignedBeaconBlockAndBlobsSidecar) (*SignedBeaconBlock, error) {
-	if pb == nil || pb.BeaconBlock == nil {
+func initSignedBlockFromProtoEip4844(pb *eth.SignedBeaconBlockWithBlobKZGs) (*SignedBeaconBlock, error) {
+	if pb == nil {
 		return nil, errNilBlock
 	}
 
-	block, err := initBlockFromProtoEip4844(pb.BeaconBlock.Block)
+	block, err := initBlockFromProtoEip4844(pb.Block)
 	if err != nil {
 		return nil, err
 	}
 	b := &SignedBeaconBlock{
 		version:   version.EIP4844,
 		block:     block,
-		signature: bytesutil.ToBytes96(pb.BeaconBlock.Signature),
+		signature: bytesutil.ToBytes96(pb.Signature),
+	}
+	return b, nil
+}
+
+func initSignedBlockAndBlobsSidecarFromProtoEip4844(pb *eth.SignedBeaconBlockAndBlobsSidecar) (*CoupledBeaconBlock, error) {
+	if pb == nil {
+		return nil, errNilBlock
+	}
+
+	block, err := initSignedBlockFromProtoEip4844(pb.BeaconBlock)
+	if err != nil {
+		return nil, err
+	}
+	b := &CoupledBeaconBlock{
+		block:   block,
+		sidecar: pb.BlobsSidecar,
 	}
 	return b, nil
 }
@@ -595,6 +611,11 @@ func initBlockFromProtoEip4844(pb *eth.BeaconBlockWithBlobKZGs) (*BeaconBlock, e
 		body:          body,
 	}
 	return b, nil
+}
+
+func initBlockAndBlobsSidecarFromProtoEip4844(pb *eth.BeaconBlockAndBlobsSidecar) (*BeaconBlock, error) {
+	// TODO(EIP-4844)
+	return nil, errors.New("unimplemented")
 }
 
 func initBlockBodyFromProtoPhase0(pb *eth.BeaconBlockBody) (*BeaconBlockBody, error) {

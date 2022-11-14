@@ -20,8 +20,8 @@ var epochsSinceFinalitySaveHotStateDB = types.Epoch(100)
 
 // BlockReceiver interface defines the methods of chain service for receiving and processing new blocks.
 type BlockReceiver interface {
-	ReceiveBlock(ctx context.Context, block interfaces.SignedBeaconBlock, blockRoot [32]byte, verifiedSidecar *ethpb.BlobsSidecar) error
-	ReceiveBlockBatch(ctx context.Context, blocks []interfaces.SignedBeaconBlock, blkRoots [][32]byte, verifiedSidecars []*ethpb.BlobsSidecar) error
+	ReceiveBlock(ctx context.Context, coupledBlock interfaces.CoupledBeaconBlock, blockRoot [32]byte) error
+	ReceiveBlockBatch(ctx context.Context, blocks []interfaces.SignedBeaconBlock, blkRoots [][32]byte) error
 	HasBlock(ctx context.Context, root [32]byte) bool
 }
 
@@ -35,17 +35,18 @@ type SlashingReceiver interface {
 //   1. Validate block, apply state transition and update checkpoints
 //   2. Apply fork choice to the processed block
 //   3. Save latest head info
-func (s *Service) ReceiveBlock(ctx context.Context, block interfaces.SignedBeaconBlock, blockRoot [32]byte, verifiedSidecar *ethpb.BlobsSidecar) error {
+func (s *Service) ReceiveBlock(ctx context.Context, coupledBlock interfaces.CoupledBeaconBlock, blockRoot [32]byte) error {
 	ctx, span := trace.StartSpan(ctx, "blockChain.ReceiveBlock")
 	defer span.End()
 	receivedTime := time.Now()
-	blockCopy, err := block.Copy()
+	blockCopy, err := coupledBlock.UnwrapBlock().Copy()
 	if err != nil {
 		return err
 	}
 
 	// Apply state transition on the new block.
-	if err := s.onBlock(ctx, blockCopy, blockRoot, verifiedSidecar); err != nil {
+	blobsSidecar := coupledBlock.BlobsSidecar()
+	if err := s.onBlock(ctx, blockCopy, blockRoot, blobsSidecar); err != nil {
 		err := errors.Wrap(err, "could not process block")
 		tracing.AnnotateError(span, err)
 		return err

@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain"
-	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blob"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/helpers"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/transition/interop"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
@@ -31,29 +30,7 @@ func (s *Service) beaconBlockSubscriber(ctx context.Context, msg proto.Message) 
 		return err
 	}
 
-	var sidecar *ethpb.BlobsSidecar
-	if blob.BlockContainsKZGs(block) {
-		slot := block.Slot()
-		s.pendingQueueLock.RLock()
-		sidecars := s.pendingSidecarsInCache(slot)
-		s.pendingQueueLock.RUnlock()
-
-		queuedSidecar := findSidecarForBlock(block, root, sidecars)
-		if queuedSidecar == nil {
-			// re-schedule block to be processed later.
-			// TODO(XXX): This is a bit inefficient as the block will be validated again
-			s.pendingQueueLock.Lock()
-			if err := s.insertBlockToPendingQueue(slot, signed, root); err != nil {
-				s.pendingQueueLock.Unlock()
-				return err
-			}
-			s.pendingQueueLock.Unlock()
-			return nil
-		}
-		sidecar = queuedSidecar.s
-	}
-
-	if err := s.cfg.chain.ReceiveBlock(ctx, signed, root, sidecar); err != nil {
+	if err := s.cfg.chain.ReceiveBlock(ctx, signed, root); err != nil {
 		if blockchain.IsInvalidBlock(err) {
 			r := blockchain.InvalidBlockRoot(err)
 			if r != [32]byte{} {

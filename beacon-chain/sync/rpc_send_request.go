@@ -23,6 +23,8 @@ var ErrInvalidFetchedData = errors.New("invalid data returned from peer")
 // blocks even before all blocks are ready.
 type BeaconBlockProcessor func(block interfaces.SignedBeaconBlock) error
 
+type CoupledBeaconBlockProcessor func(block interfaces.CoupledBeaconBlock) error
+
 // SendBeaconBlocksByRangeRequest sends BeaconBlocksByRange and returns fetched blocks, if any.
 func SendBeaconBlocksByRangeRequest(
 	ctx context.Context, chain blockchain.ForkFetcher, p2pProvider p2p.SenderEncoder, pid peer.ID,
@@ -116,6 +118,50 @@ func SendBeaconBlocksByRootRequest(
 		}
 		isFirstChunk := i == 0
 		blk, err := ReadChunkedBlock(stream, chain, p2pProvider, isFirstChunk)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if err := process(blk); err != nil {
+			return nil, err
+		}
+	}
+	return blocks, nil
+}
+
+func SendBeaconBlocksAndBlobsSidecarsByRootRequest(
+	ctx context.Context, chain blockchain.ChainInfoFetcher, p2pProvider p2p.P2P, pid peer.ID,
+	req *p2ptypes.BeaconBlockAndBlobsSidecarByRootsReq, blockProcessor CoupledBeaconBlockProcessor,
+) ([]interfaces.CoupledBeaconBlock, error) {
+	topic, err := p2p.TopicFromMessage(p2p.BeaconBlocksAndBlobsSidecarByRootsMessageName, slots.ToEpoch(chain.CurrentSlot()))
+	if err != nil {
+		return nil, err
+	}
+	stream, err := p2pProvider.Send(ctx, req, topic, pid)
+	if err != nil {
+		return nil, err
+	}
+	defer closeStream(stream, log)
+
+	// Augment block processing function, if non-nil block processor is provided.
+	blocks := make([]interfaces.CoupledBeaconBlock, 0, len(*req))
+	process := func(block interfaces.CoupledBeaconBlock) error {
+		blocks = append(blocks, block)
+		if blockProcessor != nil {
+			return blockProcessor(block)
+		}
+		return nil
+	}
+	for i := 0; i < len(*req); i++ {
+		// Exit if peer sends more than max request blocks.
+		if uint64(i) >= params.BeaconNetworkConfig().MaxRequestBlocks {
+			break
+		}
+		isFirstChunk := i == 0
+		blk, err := ReadChunkedCoupledBlock(stream, chain, p2pProvider, isFirstChunk)
 		if errors.Is(err, io.EOF) {
 			break
 		}

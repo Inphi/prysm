@@ -36,6 +36,7 @@ var (
 
 	errNilPayload              = errors.New("received nil execution payload")
 	errIncorrectPayloadVersion = errors.New("incorrect execution payload version")
+	errNoBlobsSidecar          = errors.New("no blobs sidecar in block")
 )
 
 // BeaconBlockBody is the main beacon block body structure. It can represent any block type.
@@ -72,6 +73,11 @@ type SignedBeaconBlock struct {
 	version   int
 	block     *BeaconBlock
 	signature [field_params.BLSSignatureLength]byte
+}
+
+type CoupledBeaconBlock struct {
+	block   *SignedBeaconBlock
+	sidecar *eth.BlobsSidecar
 }
 
 func errNotSupported(funcName string, ver int) error {
