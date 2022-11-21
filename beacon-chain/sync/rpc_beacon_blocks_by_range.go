@@ -188,7 +188,13 @@ func (s *Service) writeBlockRangeToStream(ctx context.Context, startSlot, endSlo
 		if err := blocks.BeaconBlockIsNil(b); err != nil {
 			continue
 		}
-		if chunkErr := s.chunkBlockWriter(stream, b); chunkErr != nil {
+		coupledBlk, err := blocks.BuildCoupledBeaconBlock(b, nil)
+		if err != nil {
+			log.WithError(err).Debug("Could not build coupled beacon block")
+			s.writeErrorResponseToStream(responseCodeServerError, p2ptypes.ErrGeneric.Error(), stream)
+			return err
+		}
+		if chunkErr := s.chunkBlockWriter(stream, coupledBlk); chunkErr != nil {
 			log.WithError(chunkErr).Debug("Could not send a chunked response")
 			s.writeErrorResponseToStream(responseCodeServerError, p2ptypes.ErrGeneric.Error(), stream)
 			tracing.AnnotateError(span, chunkErr)

@@ -17,6 +17,7 @@ type CoupledBeaconBlock interface {
 	// BlobsSidecar returns the BlobsSidecar associated with the beacon block, if it exists
 	BlobsSidecar() *ethpb.BlobsSidecar
 	IsNil() bool
+	Proto() (proto.Message, error)
 	ssz.Marshaler
 	ssz.Unmarshaler
 }

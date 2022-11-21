@@ -153,7 +153,7 @@ func (s *Service) validateBeaconBlockPubSub(ctx context.Context, pid peer.ID, ms
 	// Otherwise queue it for processing in the right slot.
 	if isBlockQueueable(genesisTime, blk.Block().Slot(), receivedTime) {
 		s.pendingQueueLock.Lock()
-		if err := s.insertBlockToPendingQueue(blk.Block().Slot(), blk, blockRoot); err != nil {
+		if err := s.insertBlockToPendingQueue(blk.Block().Slot(), coupledBlk, blockRoot); err != nil {
 			s.pendingQueueLock.Unlock()
 			log.WithError(err).WithFields(getBlockFields(blk)).Debug("Could not insert block to pending queue")
 			return pubsub.ValidationIgnore, err
@@ -167,7 +167,7 @@ func (s *Service) validateBeaconBlockPubSub(ctx context.Context, pid peer.ID, ms
 	// Handle block when the parent is unknown.
 	if !s.cfg.chain.HasBlock(ctx, blk.Block().ParentRoot()) {
 		s.pendingQueueLock.Lock()
-		if err := s.insertBlockToPendingQueue(blk.Block().Slot(), blk, blockRoot); err != nil {
+		if err := s.insertBlockToPendingQueue(blk.Block().Slot(), coupledBlk, blockRoot); err != nil {
 			s.pendingQueueLock.Unlock()
 			log.WithError(err).WithFields(getBlockFields(blk)).Debug("Could not insert block to pending queue")
 			return pubsub.ValidationIgnore, err
@@ -274,10 +274,11 @@ func (s *Service) validateBeaconBlock(ctx context.Context, blk interfaces.Signed
 
 // validateEIP4844BeaconBlock validates the block for the EIP-4844 fork.
 // In addition to the spec for validateBellatrixBeaconBlock:
-//  [REJECT] The KZG commitments of the blobs are all correctly encoded compressed BLS G1 Points.
-//   -- i.e. `all(bls.KeyValidate(commitment) for commitment in block.body.blob_kzgs)`
-//  [REJECT] The KZG commitments correspond to the versioned hashes in the transactions list.
-//   -- i.e. `verify_kzgs_against_transactions(block.body.execution_payload.transactions, block.body.blob_kzgs)`
+//
+//	[REJECT] The KZG commitments of the blobs are all correctly encoded compressed BLS G1 Points.
+//	 -- i.e. `all(bls.KeyValidate(commitment) for commitment in block.body.blob_kzgs)`
+//	[REJECT] The KZG commitments correspond to the versioned hashes in the transactions list.
+//	 -- i.e. `verify_kzgs_against_transactions(block.body.execution_payload.transactions, block.body.blob_kzgs)`
 func (s *Service) validateEIP4844BeaconBlock(ctx context.Context, parentState state.BeaconState, blk interfaces.BeaconBlock) error {
 	if err := s.validateBellatrixBeaconBlock(ctx, parentState, blk); err != nil {
 		return err

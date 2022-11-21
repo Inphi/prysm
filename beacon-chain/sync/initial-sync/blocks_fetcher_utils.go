@@ -10,6 +10,7 @@ import (
 	p2pTypes "github.com/prysmaticlabs/prysm/v3/beacon-chain/p2p/types"
 	"github.com/prysmaticlabs/prysm/v3/cmd/beacon-chain/flags"
 	"github.com/prysmaticlabs/prysm/v3/config/params"
+	consensusblocks "github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
 	p2ppb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
@@ -22,8 +23,9 @@ import (
 // Blocks are stored in an ascending slot order. The first block is guaranteed to have parent
 // either in DB or initial sync cache.
 type forkData struct {
-	peer   peer.ID
-	blocks []interfaces.SignedBeaconBlock
+	peer peer.ID
+	// TODO(EIP-4844): Keeping too many blobs sidecar in-memory could be costly
+	blocks []interfaces.CoupledBeaconBlock
 }
 
 // nonSkippedSlotAfter checks slots after the given one in an attempt to find a non-empty future slot.
@@ -224,18 +226,14 @@ func (f *blocksFetcher) findForkWithPeer(ctx context.Context, pid peer.ID, slot 
 	}
 
 	// Request blocks starting from the first non-empty slot.
-	req := &p2ppb.BeaconBlocksByRangeRequest{
-		StartSlot: nonSkippedSlot,
-		Count:     uint64(slotsPerEpoch.Mul(2)),
-		Step:      1,
-	}
-	blocks, err := f.requestBlocks(ctx, req, pid)
+	coupledBlocks, err := f.requestBlocksAndBlobsSidecars(ctx, nonSkippedSlot, uint64(slotsPerEpoch.Mul(2)), pid)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch blocks: %w", err)
 	}
 
 	// Traverse blocks, and if we've got one that doesn't have parent in DB, backtrack on it.
-	for i, block := range blocks {
+	for i, coupledBlock := range coupledBlocks {
+		block := coupledBlock.UnwrapBlock()
 		parentRoot := block.Block().ParentRoot()
 		if !f.chain.HasBlock(ctx, parentRoot) {
 			log.WithFields(logrus.Fields{
@@ -247,43 +245,62 @@ func (f *blocksFetcher) findForkWithPeer(ctx context.Context, pid peer.ID, slot 
 			// otherwise we already know the common ancestor slot.
 			if i == 0 {
 				// Backtrack on a root, to find a common ancestor from which we can resume syncing.
-				fork, err := f.findAncestor(ctx, pid, block)
+				fork, err := f.findAncestor(ctx, pid, coupledBlock)
 				if err != nil {
 					return nil, fmt.Errorf("failed to find common ancestor: %w", err)
 				}
 				return fork, nil
 			}
-			return &forkData{peer: pid, blocks: blocks}, nil
+			return &forkData{peer: pid, blocks: coupledBlocks}, nil
 		}
 	}
 	return nil, errors.New("no alternative blocks exist within scanned range")
 }
 
 // findAncestor tries to figure out common ancestor slot that connects a given root to known block.
-func (f *blocksFetcher) findAncestor(ctx context.Context, pid peer.ID, b interfaces.SignedBeaconBlock) (*forkData, error) {
-	outBlocks := []interfaces.SignedBeaconBlock{b}
+func (f *blocksFetcher) findAncestor(ctx context.Context, pid peer.ID, b interfaces.CoupledBeaconBlock) (*forkData, error) {
+	outBlocks := []interfaces.CoupledBeaconBlock{b}
 	for i := uint64(0); i < backtrackingMaxHops; i++ {
-		parentRoot := outBlocks[len(outBlocks)-1].Block().ParentRoot()
+		parentRoot := outBlocks[len(outBlocks)-1].UnwrapBlock().Block().ParentRoot()
+		parentSlot := outBlocks[len(outBlocks)-1].UnwrapBlock().Block().Slot().Sub(1)
 		if f.chain.HasBlock(ctx, parentRoot) {
 			// Common ancestor found, forward blocks back to processor.
 			sort.Slice(outBlocks, func(i, j int) bool {
-				return outBlocks[i].Block().Slot() < outBlocks[j].Block().Slot()
+				return outBlocks[i].UnwrapBlock().Block().Slot() < outBlocks[j].UnwrapBlock().Block().Slot()
 			})
 			return &forkData{
 				peer:   pid,
 				blocks: outBlocks,
 			}, nil
 		}
+		var coupledBlocks []interfaces.CoupledBeaconBlock
 		// Request block's parent.
-		req := &p2pTypes.BeaconBlockByRootsReq{parentRoot}
-		blocks, err := f.requestBlocksByRoot(ctx, req, pid)
-		if err != nil {
-			return nil, err
+		if params.BeaconConfig().Eip4844ForkEpoch <= slots.ToEpoch(parentSlot) {
+			req := &p2pTypes.BeaconBlockByRootsReq{parentRoot}
+			blocks, err := f.requestBlocksByRoot(ctx, req, pid)
+			if err != nil {
+				return nil, err
+			}
+			if len(blocks) != 0 {
+				coupledBlocks = make([]interfaces.CoupledBeaconBlock, 1)
+				coupledBlocks[0], err = consensusblocks.BuildCoupledBeaconBlock(blocks[0], nil)
+				if err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			req := &p2pTypes.BeaconBlockAndBlobsSidecarByRootsReq{parentRoot}
+			var err error
+			coupledBlocks, err = f.requestBlocksAndBlobsSidecarsByRoot(ctx, req, pid)
+			if err != nil {
+				return nil, err
+			}
 		}
-		if len(blocks) == 0 {
+
+		if len(coupledBlocks) == 0 {
 			break
 		}
-		outBlocks = append(outBlocks, blocks[0])
+		outBlocks = append(outBlocks, coupledBlocks[0])
 	}
 	return nil, errors.New("no common ancestor found")
 }

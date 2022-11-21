@@ -91,10 +91,11 @@ func Test_NewSignedBeaconBlock(t *testing.T) {
 	})
 	t.Run("GenericSignedBeaconBlock_Eip4844", func(t *testing.T) {
 		pb := &eth.GenericSignedBeaconBlock_Eip4844{
-			Eip4844: &eth.SignedBeaconBlockWithBlobKZGs{
-				Block: &eth.BeaconBlockWithBlobKZGs{
-					Body: &eth.BeaconBlockBodyWithBlobKZGs{
-						ExecutionPayload: &enginev1.ExecutionPayload4844{}}}}}
+			Eip4844: &eth.SignedBeaconBlockAndBlobsSidecar{
+				BeaconBlock: &eth.SignedBeaconBlockWithBlobKZGs{
+					Block: &eth.BeaconBlockWithBlobKZGs{
+						Body: &eth.BeaconBlockBodyWithBlobKZGs{
+							ExecutionPayload: &enginev1.ExecutionPayload4844{}}}}}}
 		b, err := NewSignedBeaconBlock(pb)
 		require.NoError(t, err)
 		assert.Equal(t, version.EIP4844, b.Version())
@@ -177,7 +178,13 @@ func Test_NewBeaconBlock(t *testing.T) {
 		assert.Equal(t, true, b.IsBlinded())
 	})
 	t.Run("GenericBeaconBlock_Eip4844", func(t *testing.T) {
-		pb := &eth.GenericBeaconBlock_Eip4844{Eip4844: &eth.BeaconBlockWithBlobKZGs{Body: &eth.BeaconBlockBodyWithBlobKZGs{ExecutionPayload: &enginev1.ExecutionPayload4844{}}}}
+		pb := &eth.GenericBeaconBlock_Eip4844{
+			Eip4844: &eth.BeaconBlockAndBlobsSidecar{
+				BeaconBlock: &eth.BeaconBlockWithBlobKZGs{
+					Body: &eth.BeaconBlockBodyWithBlobKZGs{ExecutionPayload: &enginev1.ExecutionPayload4844{}},
+				},
+			},
+		}
 		b, err := NewBeaconBlock(pb)
 		require.NoError(t, err)
 		assert.Equal(t, version.EIP4844, b.Version())

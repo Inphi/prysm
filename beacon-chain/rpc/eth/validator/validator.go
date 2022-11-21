@@ -344,7 +344,8 @@ func (vs *Server) ProduceBlockV2(ctx context.Context, req *ethpbv1.ProduceBlockR
 	}
 	eip4844Block, ok := v1alpha1resp.Block.(*ethpbalpha.GenericBeaconBlock_Eip4844)
 	if ok {
-		block, err := migration.V1Alpha1BeaconBlockEip4844ToV2(eip4844Block.Eip4844)
+		// TODO(EIP-4844): Add Blobs Sidecar to the beacon block
+		block, err := migration.V1Alpha1BeaconBlockEip4844ToV2(eip4844Block.Eip4844.BeaconBlock)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not prepare beacon block: %v", err)
 		}
@@ -434,7 +435,8 @@ func (vs *Server) ProduceBlockV2SSZ(ctx context.Context, req *ethpbv1.ProduceBlo
 	}
 	eip4844Block, ok := v1alpha1resp.Block.(*ethpbalpha.GenericBeaconBlock_Eip4844)
 	if ok {
-		block, err := migration.V1Alpha1BeaconBlockEip4844ToV2(eip4844Block.Eip4844)
+		// TODO(EIP-4844): Add Blobs Sidecar to the beacon block
+		block, err := migration.V1Alpha1BeaconBlockEip4844ToV2(eip4844Block.Eip4844.BeaconBlock)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not prepare beacon block: %v", err)
 		}
@@ -611,7 +613,8 @@ func (vs *Server) ProduceBlindedBlockSSZ(ctx context.Context, req *ethpbv1.Produ
 	}
 	eip4844Block, ok := v1alpha1resp.Block.(*ethpbalpha.GenericBeaconBlock_Eip4844)
 	if ok {
-		block, err := migration.V1Alpha1BeaconBlockEip4844ToV2Blinded(eip4844Block.Eip4844)
+		// TODO(EIP-4844): Add Blobs Sidecar to the beacon block
+		block, err := migration.V1Alpha1BeaconBlockEip4844ToV2Blinded(eip4844Block.Eip4844.BeaconBlock)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "Could not prepare beacon block: %v", err)
 		}

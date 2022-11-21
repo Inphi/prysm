@@ -1285,7 +1285,11 @@ func (bs *Server) submitBlock(ctx context.Context, blockRoot [fieldparams.RootLe
 		return status.Errorf(codes.Internal, "Could not broadcast block: %v", err)
 	}
 
-	if err := bs.BlockReceiver.ReceiveBlock(ctx, block, blockRoot, sidecar); err != nil {
+	coupledBlk, err := blocks.BuildCoupledBeaconBlock(block, sidecar)
+	if err != nil {
+		return errors.Wrap(err, "could not build coupled block")
+	}
+	if err := bs.BlockReceiver.ReceiveBlock(ctx, coupledBlk, blockRoot); err != nil {
 		return status.Errorf(codes.Internal, "Could not process beacon block: %v", err)
 	}
 

@@ -10,6 +10,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
+	enginev1 "github.com/prysmaticlabs/prysm/v3/proto/engine/v1"
 	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 )
 
@@ -97,9 +98,9 @@ func isEip4844ForkDigest(digest []byte, chain blockchain.ForkFetcher) error {
 func coupledBlockDataType() (interfaces.CoupledBeaconBlock, error) {
 	// For now only 4844 blocks are coupled
 	b, err := blocks.NewSignedBeaconBlock(
-		&pb.SignedBeaconBlockWithBlobKZGs{
-			Block: &pb.BeaconBlockWithBlobKZGs{
-				Body: &pb.BeaconBlockBodyWithBlobKZGs{
+		&ethpb.SignedBeaconBlockWithBlobKZGs{
+			Block: &ethpb.BeaconBlockWithBlobKZGs{
+				Body: &ethpb.BeaconBlockBodyWithBlobKZGs{
 					ExecutionPayload: &enginev1.ExecutionPayload4844{},
 				},
 			},

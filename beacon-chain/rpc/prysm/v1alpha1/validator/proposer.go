@@ -75,11 +75,11 @@ func (vs *Server) GetBeaconBlock(ctx context.Context, req *ethpb.BlockRequest) (
 func (vs *Server) ProposeBeaconBlock(ctx context.Context, req *ethpb.GenericSignedBeaconBlock) (*ethpb.ProposeResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "ProposerServer.ProposeBeaconBlock")
 	defer span.End()
-	blk, err := blocks.NewSignedBeaconBlock(req.Block)
+	blk, err := blocks.NewCoupledBeaconBlock(req.Block)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Could not decode block: %v", err)
 	}
-	return vs.proposeGenericBeaconBlock(ctx, blk, req.Sidecar)
+	return vs.proposeGenericBeaconBlock(ctx, blk)
 }
 
 // PrepareBeaconProposer caches and updates the fee recipient for the given proposer.
@@ -162,9 +162,10 @@ func (vs *Server) GetFeeRecipientByPubKey(ctx context.Context, request *ethpb.Fe
 	}, nil
 }
 
-func (vs *Server) proposeGenericBeaconBlock(ctx context.Context, blk interfaces.SignedBeaconBlock, sidecar *ethpb.SignedBlobsSidecar) (*ethpb.ProposeResponse, error) {
+func (vs *Server) proposeGenericBeaconBlock(ctx context.Context, coupledBlk interfaces.CoupledBeaconBlock) (*ethpb.ProposeResponse, error) {
 	ctx, span := trace.StartSpan(ctx, "ProposerServer.proposeGenericBeaconBlock")
 	defer span.End()
+	blk := coupledBlk.UnwrapBlock()
 	root, err := blk.Block().HashTreeRoot()
 	if err != nil {
 		return nil, fmt.Errorf("could not tree hash block: %v", err)
@@ -185,27 +186,20 @@ func (vs *Server) proposeGenericBeaconBlock(ctx context.Context, blk interfaces.
 		})
 	}()
 
-	// Broadcast the new block to the network.
-	blkPb, err := blk.Proto()
+	blkPb, err := coupledBlk.Proto()
 	if err != nil {
-		return nil, errors.Wrap(err, "could not get protobuf block")
+		return nil, err
 	}
+	// Broadcast the new block to the network.
 	if err := vs.P2P.Broadcast(ctx, blkPb); err != nil {
 		return nil, fmt.Errorf("could not broadcast block: %v", err)
-	}
-	var sidecarData *ethpb.BlobsSidecar
-	if sidecar != nil {
-		sidecarData = sidecar.Message
-		if err := vs.P2P.Broadcast(ctx, sidecar); err != nil {
-			log.WithError(err).Error("could not broadcast blobs sidecar")
-		}
 	}
 
 	log.WithFields(logrus.Fields{
 		"blockRoot": hex.EncodeToString(root[:]),
 	}).Debug("Broadcasting block")
 
-	if err := vs.BlockReceiver.ReceiveBlock(ctx, blk, root, sidecarData); err != nil {
+	if err := vs.BlockReceiver.ReceiveBlock(ctx, coupledBlk, root); err != nil {
 		return nil, fmt.Errorf("could not process beacon block: %v", err)
 	}
 

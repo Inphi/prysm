@@ -31,6 +31,28 @@ var (
 	ErrUnsupportedPayload = errors.New("unsupported execution payload")
 )
 
+func NewCoupledBeaconBlock(i interface{}) (interfaces.CoupledBeaconBlock, error) {
+	switch b := i.(type) {
+	case nil:
+		return nil, ErrNilObject
+	case *eth.GenericSignedBeaconBlock_Eip4844:
+		if b.Eip4844 == nil {
+			return nil, ErrNilObject
+		}
+		blk, err := NewSignedBeaconBlock(i)
+		if err != nil {
+			return nil, err
+		}
+		return BuildCoupledBeaconBlock(blk, b.Eip4844.BlobsSidecar)
+	default:
+		blk, err := NewSignedBeaconBlock(i)
+		if err != nil {
+			return nil, err
+		}
+		return BuildCoupledBeaconBlock(blk, nil)
+	}
+}
+
 // NewSignedBeaconBlock creates a signed beacon block from a protobuf signed beacon block.
 func NewSignedBeaconBlock(i interface{}) (interfaces.SignedBeaconBlock, error) {
 	switch b := i.(type) {

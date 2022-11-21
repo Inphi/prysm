@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/async"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain"
@@ -60,10 +61,7 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 		return errors.Wrap(err, "could not validate pending slots")
 	}
 	ss := s.sortedPendingSlots()
-	var (
-		parentRoots [][32]byte
-		parentSlots []types.Slot
-	)
+	var parentRoots [][32]byte
 
 	span.AddAttributes(
 		trace.Int64Attribute("numSlots", int64(len(ss))),
@@ -143,7 +141,6 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 					"parentRoot":  hex.EncodeToString(bytesutil.Trunc(parentRoot[:])),
 				}).Debug("Requesting parent block")
 				parentRoots = append(parentRoots, b.Block().ParentRoot())
-				parentSlots = append(parentSlots, b.Block().Slot())
 
 				span.End()
 				continue
@@ -211,7 +208,7 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 		}
 	}
 
-	return s.sendBatchRootRequest(ctx, parentRoots, parentSlots, randGen)
+	return s.sendBatchRootRequest(ctx, parentRoots, randGen)
 }
 
 func (s *Service) checkIfBlockIsBad(
@@ -243,15 +240,12 @@ func (s *Service) checkIfBlockIsBad(
 	return true, nil
 }
 
-func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, rootSlots []types.Slot, randGen *rand.Rand) error {
+func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, randGen *rand.Rand) error {
 	ctx, span := trace.StartSpan(ctx, "sendBatchRootRequest")
 	defer span.End()
 
 	if len(roots) == 0 {
 		return nil
-	}
-	if len(roots) != len(rootSlots) {
-		return errors.New("length of roots must equal length of slotsd")
 	}
 	cp := s.cfg.chain.FinalizedCheckpt()
 	_, bestPeers := s.cfg.p2p.Peers().BestFinalized(maxPeerRequest, cp.Epoch)
@@ -259,39 +253,17 @@ func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, ro
 		return nil
 	}
 	roots = s.dedupRoots(roots)
-
-	var (
-		virginRoots  [][32]byte
-		coupledRoots [][32]byte
-	)
-	for i := range roots {
-		if params.BeaconConfig().Eip4844ForkEpoch <= slots.ToEpoch(rootSlots[i]) {
-			coupledRoots = append(coupledRoots, roots[i])
-		} else {
-			virginRoots = append(virginRoots, roots[i])
-		}
-	}
-
 	// Randomly choose a peer to query from our best peers. If that peer cannot return
 	// all the requested blocks, we randomly select another peer.
 	pid := bestPeers[randGen.Int()%len(bestPeers)]
-	for i := 0; i < numOfTries; i++ {
-		virginReq := p2ptypes.BeaconBlockByRootsReq(virginRoots)
-		if len(roots) > int(params.BeaconNetworkConfig().MaxRequestBlocks) {
-			virginReq = virginRoots[:params.BeaconNetworkConfig().MaxRequestBlocks]
-		}
-		if err := s.sendRecentBeaconBlocksRequest(ctx, &virginReq, pid); err != nil {
-			tracing.AnnotateError(span, err)
-			log.WithError(err).Debug("Could not send recent block request")
-		}
 
-		coupledReq := p2ptypes.BeaconBlockAndBlobsSidecarByRootsReq(coupledRoots)
+	fillBlocksQueue := func(blockQueueWriter func(ctx context.Context, roots [][32]byte, pid peer.ID) error) error {
+		req := roots
 		if len(roots) > int(params.BeaconNetworkConfig().MaxRequestBlocks) {
-			coupledReq = coupledRoots[:params.BeaconNetworkConfig().MaxRequestBlocks]
+			req = roots[:params.BeaconNetworkConfig().MaxRequestBlocks]
 		}
-		if err := s.sendRecentBeaconBlocksAndBlobsSidecarsRequest(ctx, &coupledReq, pid); err != nil {
-			tracing.AnnotateError(span, err)
-			log.WithError(err).Debug("Could not send recent block request")
+		if err := blockQueueWriter(ctx, req, pid); err != nil {
+			return err
 		}
 
 		newRoots := make([][32]byte, 0, len(roots))
@@ -302,13 +274,39 @@ func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, ro
 			}
 		}
 		s.pendingQueueLock.RUnlock()
-		if len(newRoots) == 0 {
-			break
-		}
 		// Choosing a new peer with the leftover set of
 		// roots to request.
 		roots = newRoots
 		pid = bestPeers[randGen.Int()%len(bestPeers)]
+		return nil
+	}
+
+	for i := 0; i < numOfTries; i++ {
+		// Request using the new RPC and if there are block roots unsatisfied, fallback to the old Req-Res RPC
+		// TODO: A truncated/rate-limited roots set will induce a fallback. This needs to be detected and handled
+		err := fillBlocksQueue(func(ctx context.Context, roots [][32]byte, pid peer.ID) error {
+			req := p2ptypes.BeaconBlockAndBlobsSidecarByRootsReq(roots)
+			return s.sendRecentBeaconBlocksAndBlobsSidecarsRequest(ctx, &req, pid)
+		})
+		if err != nil {
+			tracing.AnnotateError(span, err)
+			log.WithError(err).Debug("Could not send recent block request")
+		}
+
+		if len(roots) != 0 {
+			err := fillBlocksQueue(func(ctx context.Context, roots [][32]byte, pid peer.ID) error {
+				req := p2ptypes.BeaconBlockByRootsReq(roots)
+				return s.sendRecentBeaconBlocksRequest(ctx, &req, pid)
+			})
+			if err != nil {
+				tracing.AnnotateError(span, err)
+				log.WithError(err).Debug("Could not send recent block request")
+			}
+		}
+
+		if len(roots) == 0 {
+			break
+		}
 	}
 	return nil
 }

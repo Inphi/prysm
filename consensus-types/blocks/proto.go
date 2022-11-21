@@ -9,6 +9,21 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// Proto converts the coupled beacon block to a protobuf object.
+func (b *CoupledBeaconBlock) Proto() (proto.Message, error) {
+	if b.sidecar == nil {
+		return b.block.Proto()
+	}
+	blk, err := b.block.PbEip4844Block()
+	if err != nil {
+		return nil, err
+	}
+	return &eth.SignedBeaconBlockAndBlobsSidecar{
+		BeaconBlock:  blk,
+		BlobsSidecar: b.sidecar,
+	}, nil
+}
+
 // Proto converts the signed beacon block to a protobuf object.
 func (b *SignedBeaconBlock) Proto() (proto.Message, error) {
 	if b == nil {

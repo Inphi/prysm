@@ -21,7 +21,7 @@ var epochsSinceFinalitySaveHotStateDB = types.Epoch(100)
 // BlockReceiver interface defines the methods of chain service for receiving and processing new blocks.
 type BlockReceiver interface {
 	ReceiveBlock(ctx context.Context, coupledBlock interfaces.CoupledBeaconBlock, blockRoot [32]byte) error
-	ReceiveBlockBatch(ctx context.Context, blocks []interfaces.SignedBeaconBlock, blkRoots [][32]byte) error
+	ReceiveBlockBatch(ctx context.Context, coupledBlocks []interfaces.CoupledBeaconBlock, blkRoots [][32]byte) error
 	HasBlock(ctx context.Context, root [32]byte) bool
 }
 
@@ -32,9 +32,9 @@ type SlashingReceiver interface {
 
 // ReceiveBlock is a function that defines the operations (minus pubsub)
 // that are performed on a received block. The operations consist of:
-//   1. Validate block, apply state transition and update checkpoints
-//   2. Apply fork choice to the processed block
-//   3. Save latest head info
+//  1. Validate block, apply state transition and update checkpoints
+//  2. Apply fork choice to the processed block
+//  3. Save latest head info
 func (s *Service) ReceiveBlock(ctx context.Context, coupledBlock interfaces.CoupledBeaconBlock, blockRoot [32]byte) error {
 	ctx, span := trace.StartSpan(ctx, "blockChain.ReceiveBlock")
 	defer span.End()
@@ -86,18 +86,19 @@ func (s *Service) ReceiveBlock(ctx context.Context, coupledBlock interfaces.Coup
 // ReceiveBlockBatch processes the whole block batch at once, assuming the block batch is linear ,transitioning
 // the state, performing batch verification of all collected signatures and then performing the appropriate
 // actions for a block post-transition.
-func (s *Service) ReceiveBlockBatch(ctx context.Context, blocks []interfaces.SignedBeaconBlock, blkRoots [][32]byte, sidecars []*ethpb.BlobsSidecar) error {
+func (s *Service) ReceiveBlockBatch(ctx context.Context, coupledBlocks []interfaces.CoupledBeaconBlock, blkRoots [][32]byte) error {
 	ctx, span := trace.StartSpan(ctx, "blockChain.ReceiveBlockBatch")
 	defer span.End()
 
 	// Apply state transition on the incoming newly received block batches, one by one.
-	if err := s.onBlockBatch(ctx, blocks, blkRoots, sidecars); err != nil {
+	if err := s.onBlockBatch(ctx, coupledBlocks, blkRoots); err != nil {
 		err := errors.Wrap(err, "could not process block in batch")
 		tracing.AnnotateError(span, err)
 		return err
 	}
 
-	for i, b := range blocks {
+	for i, coupledBlk := range coupledBlocks {
+		b := coupledBlk.UnwrapBlock()
 		blockCopy, err := b.Copy()
 		if err != nil {
 			return err

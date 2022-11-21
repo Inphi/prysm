@@ -111,7 +111,7 @@ func (b *SignedBeaconBlock) PbGenericBlock() (*eth.GenericSignedBeaconBlock, err
 		}, nil
 	case version.EIP4844:
 		return &eth.GenericSignedBeaconBlock{
-			Block: &eth.GenericSignedBeaconBlock_Eip4844{Eip4844: pb.(*eth.SignedBeaconBlockWithBlobKZGs)},
+			Block: &eth.GenericSignedBeaconBlock_Eip4844{Eip4844: pb.(*eth.SignedBeaconBlockAndBlobsSidecar)},
 		}, nil
 	default:
 		return nil, errIncorrectBlockVersion

@@ -117,7 +117,11 @@ func (vs *Server) assembleEip4844Block(ctx context.Context, altairBlk *ethpb.Bea
 	}
 
 	return &ethpb.GenericBeaconBlock{
-		Block:   &ethpb.GenericBeaconBlock_Eip4844{Eip4844: blk},
-		Sidecar: sideCar,
+		Block: &ethpb.GenericBeaconBlock_Eip4844{
+			Eip4844: &ethpb.BeaconBlockAndBlobsSidecar{
+				BeaconBlock:  blk,
+				BlobsSidecar: sideCar,
+			},
+		},
 	}, nil
 }
