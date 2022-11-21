@@ -146,7 +146,9 @@ func TestService_ReceiveBlock(t *testing.T) {
 			require.NoError(t, err)
 			wsb, err := blocks.NewSignedBeaconBlock(tt.args.block)
 			require.NoError(t, err)
-			err = s.ReceiveBlock(ctx, wsb, root, nil)
+			csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+			require.NoError(t, err)
+			err = s.ReceiveBlock(ctx, csb, root)
 			if tt.wantedErr != "" {
 				assert.ErrorContains(t, tt.wantedErr, err)
 			} else {
@@ -189,7 +191,9 @@ func TestService_ReceiveBlockUpdateHead(t *testing.T) {
 	go func() {
 		wsb, err := blocks.NewSignedBeaconBlock(b)
 		require.NoError(t, err)
-		require.NoError(t, s.ReceiveBlock(ctx, wsb, root, nil))
+		csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
+		require.NoError(t, s.ReceiveBlock(ctx, csb, root))
 		wg.Done()
 	}()
 	wg.Wait()
@@ -260,9 +264,11 @@ func TestService_ReceiveBlockBatch(t *testing.T) {
 			require.NoError(t, err)
 			wsb, err := blocks.NewSignedBeaconBlock(tt.args.block)
 			require.NoError(t, err)
-			blks := []interfaces.SignedBeaconBlock{wsb}
+			csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+			require.NoError(t, err)
+			blks := []interfaces.CoupledBeaconBlock{csb}
 			roots := [][32]byte{root}
-			err = s.ReceiveBlockBatch(ctx, blks, roots, nil)
+			err = s.ReceiveBlockBatch(ctx, blks, roots)
 			if tt.wantedErr != "" {
 				assert.ErrorContains(t, tt.wantedErr, err)
 			} else {

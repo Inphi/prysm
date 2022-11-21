@@ -158,7 +158,7 @@ func TestStore_OnBlockBatch(t *testing.T) {
 	require.NoError(t, service.saveGenesisData(ctx, st))
 	bState := st.Copy()
 
-	var blks []interfaces.SignedBeaconBlock
+	var blks []interfaces.CoupledBeaconBlock
 	var blkRoots [][32]byte
 	for i := 0; i < 97; i++ {
 		b, err := util.GenerateFullBlock(bState, keys, util.DefaultBlockGenConfig(), types.Slot(i))
@@ -172,12 +172,14 @@ func TestStore_OnBlockBatch(t *testing.T) {
 		require.NoError(t, service.saveInitSyncBlock(ctx, root, wsb))
 		wsb, err = consensusblocks.NewSignedBeaconBlock(b)
 		require.NoError(t, err)
-		blks = append(blks, wsb)
+		csb, err := consensusblocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
+		blks = append(blks, csb)
 		blkRoots = append(blkRoots, root)
 	}
-	err = service.onBlockBatch(ctx, blks, blkRoots[1:], nil)
+	err = service.onBlockBatch(ctx, blks, blkRoots[1:])
 	require.ErrorIs(t, errWrongBlockCount, err)
-	err = service.onBlockBatch(ctx, blks, blkRoots, nil)
+	err = service.onBlockBatch(ctx, blks, blkRoots)
 	require.NoError(t, err)
 	jcp := service.CurrentJustifiedCheckpt()
 	jroot := bytesutil.ToBytes32(jcp.Root)
@@ -201,7 +203,7 @@ func TestStore_OnBlockBatch_NotifyNewPayload(t *testing.T) {
 	require.NoError(t, service.saveGenesisData(ctx, st))
 	bState := st.Copy()
 
-	var blks []interfaces.SignedBeaconBlock
+	var blks []interfaces.CoupledBeaconBlock
 	var blkRoots [][32]byte
 	blkCount := 4
 	for i := 0; i <= blkCount; i++ {
@@ -214,10 +216,12 @@ func TestStore_OnBlockBatch_NotifyNewPayload(t *testing.T) {
 		root, err := b.Block.HashTreeRoot()
 		require.NoError(t, err)
 		require.NoError(t, service.saveInitSyncBlock(ctx, root, wsb))
-		blks = append(blks, wsb)
+		csb, err := consensusblocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
+		blks = append(blks, csb)
 		blkRoots = append(blkRoots, root)
 	}
-	err = service.onBlockBatch(ctx, blks, blkRoots, nil)
+	err = service.onBlockBatch(ctx, blks, blkRoots)
 	require.NoError(t, err)
 }
 
