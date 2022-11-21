@@ -575,6 +575,12 @@ def prysm_deps():
         sum = "h1:p1EgwI/C7NhT0JmVkwCD2ZBK8j4aeHQX2pMHHBfMQ6w=",
         version = "v2.0.2",
     )
+    go_repository(
+        name = "com_github_crate_crypto_go_ipa",
+        importpath = "github.com/crate-crypto/go-ipa",
+        sum = "h1:6IrxszG5G+O7zhtkWxq6+unVvnrm1fqV2Pe+T95DUzw=",
+        version = "v0.0.0-20220523130400-f11357ae11c7",
+    )
 
     go_repository(
         name = "com_github_creack_pty",
@@ -818,8 +824,8 @@ def prysm_deps():
             "//third_party:com_github_ethereum_go_ethereum_secp256k1.patch",
         ],
         replace = "github.com/mdehoog/go-ethereum",
-        sum = "h1:ERmH7q3eETG8aYoEa62/uRRQheRH0kwywtVnCSWlbfE=",
-        version = "v1.10.19-0.20221025212535-8925aee77ccf",
+        sum = "h1:dDZoePQcrgfgy3X1nXOQbmqJiejqylUm7vo8FVqS63E=",
+        version = "v1.10.19-0.20221117161519-a720ac19cc79",
     )
 
     go_repository(
@@ -932,6 +938,13 @@ def prysm_deps():
         sum = "h1:f6D9Hr8xV8uYKlyuj8XIruxlh9WjVjdh1gIicAS7ays=",
         version = "v0.0.0-20191108122812-4678299bea08",
     )
+    go_repository(
+        name = "com_github_gballet_go_verkle",
+        importpath = "github.com/gballet/go-verkle",
+        sum = "h1:AB7YjNrzlVHsYz06zCULVV2zYCEft82P86dSmtwxKL0=",
+        version = "v0.0.0-20220902153445-097bd83b7732",
+    )
+
     go_repository(
         name = "com_github_gdamore_encoding",
         importpath = "github.com/gdamore/encoding",
@@ -1539,6 +1552,12 @@ def prysm_deps():
         importpath = "github.com/herumi/bls-eth-go-binary",
         sum = "h1:fcIZ48y5EE9973k05XjE8+P3YiQgjZz4JI/YabAm8KA=",
         version = "v1.28.1",
+    )
+    go_repository(
+        name = "com_github_holiman_big",
+        importpath = "github.com/holiman/big",
+        sum = "h1:pIYdhNkDh+YENVNi3gto8n9hAmRxKxoar0iE6BLucjw=",
+        version = "v0.0.0-20221017200358-a027dc42d04e",
     )
 
     go_repository(
@@ -2893,8 +2912,8 @@ def prysm_deps():
     go_repository(
         name = "com_github_protolambda_go_kzg",
         importpath = "github.com/protolambda/go-kzg",
-        sum = "h1:9PBJD0rbR2dsgzUoi7GGbCJ3PZssM2eK//tHaAVS5Ds=",
-        version = "v0.0.0-20221025081131-f3a74d3b1d0c",
+        sum = "h1:oTNfeC6fvE/m3iT62hR+umMXjdjtnhCQ6ez9Kl4Gwu0=",
+        version = "v0.0.0-20221108193918-c6d0faa55038",
     )
     go_repository(
         name = "com_github_protolambda_ztyp",
@@ -2982,11 +3001,11 @@ def prysm_deps():
     )
     go_repository(
         name = "com_github_rivo_uniseg",
-        importpath = "github.com/rivo/uniseg",
         build_directives = [
             "gazelle:exclude gen_breaktest.go",
             "gazelle:exclude gen_properties.go",
         ],
+        importpath = "github.com/rivo/uniseg",
         sum = "h1:3Z3Eu6FGHZWSfNKJTOUiPatWwfc7DzJRU04jFUqJODw=",
         version = "v0.3.4",
     )
@@ -3492,8 +3511,8 @@ def prysm_deps():
     go_repository(
         name = "com_github_urfave_cli_v2",
         importpath = "github.com/urfave/cli/v2",
-        sum = "h1:x3p8awjp/2arX+Nl/G2040AZpOCHS/eMJJ1/a+mye4Y=",
-        version = "v2.10.2",
+        sum = "h1:5SqCsI/2Qya2bCzK15ozrqo2sZxkh0FHynJZOTVoV6Q=",
+        version = "v2.17.2-0.20221006022127-8f469abc00aa",
     )
     go_repository(
         name = "com_github_uudashr_gocognit",
@@ -4172,8 +4191,8 @@ def prysm_deps():
     go_repository(
         name = "org_golang_x_sys",
         importpath = "golang.org/x/sys",
-        sum = "h1:v6hYoSR9T5oet+pMXwUWkbiVqx/63mlHjefrHmxwfeY=",
-        version = "v0.0.0-20220829200755-d48e67d00261",
+        sum = "h1:OK7RB6t2WQX54srQQYSXMW8dF5C6/8+oA/s5QBmmto4=",
+        version = "v0.0.0-20221013171732-95e765b1cc43",
     )
     go_repository(
         name = "org_golang_x_term",
@@ -4267,12 +4286,6 @@ def prysm_deps():
         importpath = "go.uber.org/zap",
         sum = "h1:Zcye5DUgBloQ9BaT4qc9BnjOFog5TvBSAGkJ3Nf70c0=",
         version = "v1.22.0",
-    )
-    go_repository(
-        name = "tools_gotest",
-        importpath = "gotest.tools",
-        sum = "h1:VsBPFP1AI068pPrMxtb/S8Zkgf9xEmTLJjfM+P5UIEo=",
-        version = "v2.2.0+incompatible",
     )
 
     # Note: go_repository is already wrapped with maybe!

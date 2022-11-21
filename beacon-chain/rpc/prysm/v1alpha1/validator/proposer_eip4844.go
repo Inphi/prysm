@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/crypto/kzg"
 	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blob"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/transition/interop"
 	"github.com/prysmaticlabs/prysm/v3/config/params"
 	consensusblocks "github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
@@ -74,17 +76,17 @@ func (vs *Server) assembleEip4844Block(ctx context.Context, altairBlk *ethpb.Bea
 		ParentRoot:    altairBlk.ParentRoot,
 		StateRoot:     params.BeaconConfig().ZeroHash[:],
 		Body: &ethpb.BeaconBlockBodyWithBlobKZGs{
-			RandaoReveal:      altairBlk.Body.RandaoReveal,
-			Eth1Data:          altairBlk.Body.Eth1Data,
-			Graffiti:          altairBlk.Body.Graffiti,
-			ProposerSlashings: altairBlk.Body.ProposerSlashings,
-			AttesterSlashings: altairBlk.Body.AttesterSlashings,
-			Attestations:      altairBlk.Body.Attestations,
-			Deposits:          altairBlk.Body.Deposits,
-			VoluntaryExits:    altairBlk.Body.VoluntaryExits,
-			SyncAggregate:     altairBlk.Body.SyncAggregate,
-			ExecutionPayload:  payload,
-			BlobKzgs:          blobsBundle.Kzgs,
+			RandaoReveal:       altairBlk.Body.RandaoReveal,
+			Eth1Data:           altairBlk.Body.Eth1Data,
+			Graffiti:           altairBlk.Body.Graffiti,
+			ProposerSlashings:  altairBlk.Body.ProposerSlashings,
+			AttesterSlashings:  altairBlk.Body.AttesterSlashings,
+			Attestations:       altairBlk.Body.Attestations,
+			Deposits:           altairBlk.Body.Deposits,
+			VoluntaryExits:     altairBlk.Body.VoluntaryExits,
+			SyncAggregate:      altairBlk.Body.SyncAggregate,
+			ExecutionPayload:   payload,
+			BlobKzgCommitments: blobsBundle.Kzgs,
 		},
 	}
 
@@ -108,11 +110,15 @@ func (vs *Server) assembleEip4844Block(ctx context.Context, altairBlk *ethpb.Bea
 
 	var sideCar *ethpb.BlobsSidecar
 	if len(blobsBundle.Blobs) != 0 {
+		aggregatedProof, err := kzg.ComputeAggregateKZGProof(blob.BlobsSequenceImpl(blobsBundle.Blobs))
+		if err != nil {
+			return nil, fmt.Errorf("failed to compute aggregated kzg proof: %v", err)
+		}
 		sideCar = &ethpb.BlobsSidecar{
 			BeaconBlockRoot: r[:],
 			BeaconBlockSlot: wsb.Block().Slot(),
 			Blobs:           blobsBundle.Blobs,
-			AggregatedProof: blobsBundle.AggregatedProof,
+			AggregatedProof: aggregatedProof[:],
 		}
 	}
 

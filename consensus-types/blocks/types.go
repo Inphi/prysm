@@ -55,7 +55,7 @@ type BeaconBlockBody struct {
 	executionData         interfaces.ExecutionData
 	executionDataHeader   interfaces.ExecutionDataHeader
 	blsToExecutionChanges []*eth.SignedBLSToExecutionChange
-	blobKzgs              [][]byte
+	blobKzgCommitments    [][]byte
 }
 
 // BeaconBlock is the main beacon block structure. It can represent any block type.

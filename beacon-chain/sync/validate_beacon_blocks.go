@@ -8,7 +8,6 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
-	"github.com/protolambda/go-kzg/bls"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blocks"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/feed"
 	blockfeed "github.com/prysmaticlabs/prysm/v3/beacon-chain/core/feed/block"
@@ -18,7 +17,6 @@ import (
 	"github.com/prysmaticlabs/prysm/v3/config/features"
 	"github.com/prysmaticlabs/prysm/v3/config/params"
 	consensusblocks "github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
-	"github.com/prysmaticlabs/prysm/v3/consensus-types/forks/eip4844"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
@@ -305,25 +303,19 @@ func (s *Service) validateEIP4844BeaconBlock(ctx context.Context, parentState st
 		return nil
 	}
 
-	blobKzgs, err := body.BlobKzgs()
+	blobKzgs, err := body.BlobKzgCommitments()
 	if err != nil {
 		return err
 	}
-	blobKzgsInput := make([][48]byte, len(blobKzgs))
+	blobKzgsInput := make(kzg.KZGCommitmentSequenceImpl, len(blobKzgs))
 	for i := range blobKzgs {
-		if len(blobKzgs[i]) != 48 {
-			return errors.New("invalid blob kzg length")
-		}
-		if _, err := bls.FromCompressedG1(blobKzgs[i]); err != nil {
-			return errors.Wrap(err, "invalid blob kzg encoding")
-		}
-		blobKzgsInput[i] = bytesutil.ToBytes48(blobKzgs[i])
+		blobKzgsInput[i] = kzg.KZGCommitment(bytesutil.ToBytes48(blobKzgs[i]))
 	}
 	txs, err := payload.Transactions()
 	if err != nil {
 		return err
 	}
-	return eip4844.VerifyKzgsAgainstTxs(txs, blobKzgsInput)
+	return kzg.VerifyKZGCommitmentsAgainstTransactions(txs, blobKzgsInput)
 }
 
 // validateBellatrixBeaconBlock validates the block for the Bellatrix fork.

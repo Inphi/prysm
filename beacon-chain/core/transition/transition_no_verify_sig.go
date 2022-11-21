@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/crypto/kzg"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/altair"
 	b "github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blocks"
@@ -12,7 +13,6 @@ import (
 	v "github.com/prysmaticlabs/prysm/v3/beacon-chain/core/validators"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
-	"github.com/prysmaticlabs/prysm/v3/consensus-types/forks/eip4844"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	"github.com/prysmaticlabs/prysm/v3/crypto/bls"
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
@@ -265,7 +265,7 @@ func ProcessOperationsNoVerifyAttsSigs(
 	return state, nil
 }
 
-func ProcessBlobKzgs(ctx context.Context, state state.BeaconState, body interfaces.BeaconBlockBody) (state.BeaconState, error) {
+func ProcessBlobKzgCommitments(ctx context.Context, state state.BeaconState, body interfaces.BeaconBlockBody) (state.BeaconState, error) {
 	_, span := trace.StartSpan(ctx, "core.state.ProocessBlobKzgs")
 	defer span.End()
 
@@ -273,20 +273,20 @@ func ProcessBlobKzgs(ctx context.Context, state state.BeaconState, body interfac
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get execution payload from block")
 	}
-	blobKzgs, err := body.BlobKzgs()
+	blobKzgCommitments, err := body.BlobKzgCommitments()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get blob kzgs from block")
 	}
-	blobKzgsInput := make([][48]byte, len(blobKzgs))
-	for i := range blobKzgs {
-		blobKzgsInput[i] = bytesutil.ToBytes48(blobKzgs[i])
+	blobKzgsInput := make(kzg.KZGCommitmentSequenceImpl, len(blobKzgCommitments))
+	for i := range blobKzgCommitments {
+		blobKzgsInput[i] = kzg.KZGCommitment(bytesutil.ToBytes48(blobKzgCommitments[i]))
 	}
 
 	txs, err := payload.Transactions()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get transactions from payload")
 	}
-	if err := eip4844.VerifyKzgsAgainstTxs(txs, blobKzgsInput); err != nil {
+	if err := kzg.VerifyKZGCommitmentsAgainstTransactions(txs, blobKzgsInput); err != nil {
 		return nil, errors.Wrap(err, "could not verify kzgs against txs")
 	}
 	return state, nil
@@ -390,7 +390,7 @@ func ProcessBlockForStateRoot(
 		return state, nil
 	}
 
-	state, err = ProcessBlobKzgs(ctx, state, signed.Block().Body())
+	state, err = ProcessBlobKzgCommitments(ctx, state, signed.Block().Body())
 	if err != nil {
 		tracing.AnnotateError(span, err)
 		return nil, errors.Wrap(err, "process_blob_kzgs failed")
