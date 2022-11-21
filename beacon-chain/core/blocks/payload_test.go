@@ -21,12 +21,12 @@ import (
 func Test_IsMergeComplete(t *testing.T) {
 	tests := []struct {
 		name    string
-		payload interfaces.ExecutionData
+		payload interfaces.ExecutionDataHeader
 		want    bool
 	}{
 		{
 			name: "empty payload header",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -35,7 +35,7 @@ func Test_IsMergeComplete(t *testing.T) {
 		},
 		{
 			name: "has parent hash",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -43,13 +43,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.ParentHash = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has fee recipient",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -57,13 +59,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.FeeRecipient = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has state root",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -71,13 +75,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.StateRoot = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has receipt root",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -85,13 +91,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.ReceiptsRoot = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has logs bloom",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -99,13 +107,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.LogsBloom = bytesutil.PadTo([]byte{'a'}, fieldparams.LogsBloomLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has random",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -113,13 +123,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.PrevRandao = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has base fee",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -127,13 +139,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.BaseFeePerGas = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has block hash",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -141,13 +155,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.BlockHash = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has extra data",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -155,13 +171,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.ExtraData = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has block number",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -169,13 +187,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.BlockNumber = 1
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has gas limit",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -183,13 +203,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.GasLimit = 1
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has gas used",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -197,13 +219,15 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.GasUsed = 1
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "has time stamp",
-			payload: func() interfaces.ExecutionData {
+			payload: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -211,6 +235,8 @@ func Test_IsMergeComplete(t *testing.T) {
 				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
 				require.Equal(t, true, ok)
 				p.Timestamp = 1
+				h, err = consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
@@ -219,9 +245,7 @@ func Test_IsMergeComplete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			st, _ := util.DeterministicGenesisStateBellatrix(t, 1)
-			wrappedHeader, err := consensusblocks.NewExecutionDataHeader(tt.payload)
-			require.NoError(t, err)
-			require.NoError(t, st.SetLatestExecutionPayloadHeader(wrappedHeader))
+			require.NoError(t, st.SetLatestExecutionPayloadHeader(tt.payload))
 			got, err := blocks.IsMergeTransitionComplete(st)
 			require.NoError(t, err)
 			if got != tt.want {
@@ -269,14 +293,14 @@ func Test_IsExecutionEnabled(t *testing.T) {
 	tests := []struct {
 		name        string
 		payload     *enginev1.ExecutionPayload
-		header      interfaces.ExecutionData
+		header      interfaces.ExecutionDataHeader
 		useAltairSt bool
 		want        bool
 	}{
 		{
 			name:    "use older than bellatrix state",
 			payload: emptyPayload(),
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -287,7 +311,7 @@ func Test_IsExecutionEnabled(t *testing.T) {
 		{
 			name:    "empty header, empty payload",
 			payload: emptyPayload(),
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -297,21 +321,18 @@ func Test_IsExecutionEnabled(t *testing.T) {
 		{
 			name:    "non-empty header, empty payload",
 			payload: emptyPayload(),
-			header: func() interfaces.ExecutionData {
-				h, err := emptyPayloadHeader()
-				require.NoError(t, err)
-				prot, err := h.Proto()
-				require.NoError(t, err)
-				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
-				require.Equal(t, true, ok)
+			header: func() interfaces.ExecutionDataHeader {
+				p := emptyPayload()
 				p.ParentHash = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err := consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			want: true,
 		},
 		{
 			name: "empty header, non-empty payload",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -325,14 +346,11 @@ func Test_IsExecutionEnabled(t *testing.T) {
 		},
 		{
 			name: "non-empty header, non-empty payload",
-			header: func() interfaces.ExecutionData {
-				h, err := emptyPayloadHeader()
-				require.NoError(t, err)
-				prot, err := h.Proto()
-				require.NoError(t, err)
-				p, ok := prot.(*enginev1.ExecutionPayloadHeader)
-				require.Equal(t, true, ok)
+			header: func() interfaces.ExecutionDataHeader {
+				p := emptyPayload()
 				p.ParentHash = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
+				h, err := consensusblocks.NewExecutionDataHeader(p)
+				require.NoError(t, err)
 				return h
 			}(),
 			payload: func() *enginev1.ExecutionPayload {
@@ -346,9 +364,7 @@ func Test_IsExecutionEnabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			st, _ := util.DeterministicGenesisStateBellatrix(t, 1)
-			wrappedHeader, err := consensusblocks.NewExecutionDataHeader(tt.header)
-			require.NoError(t, err)
-			require.NoError(t, st.SetLatestExecutionPayloadHeader(wrappedHeader))
+			require.NoError(t, st.SetLatestExecutionPayloadHeader(tt.header))
 			blk := util.NewBeaconBlockBellatrix()
 			blk.Block.Body.ExecutionPayload = tt.payload
 			body, err := consensusblocks.NewBeaconBlockBody(blk.Block.Body)
@@ -369,13 +385,13 @@ func Test_IsExecutionEnabledUsingHeader(t *testing.T) {
 	tests := []struct {
 		name    string
 		payload *enginev1.ExecutionPayload
-		header  interfaces.ExecutionData
+		header  interfaces.ExecutionDataHeader
 		want    bool
 	}{
 		{
 			name:    "empty header, empty payload",
 			payload: emptyPayload(),
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -385,7 +401,7 @@ func Test_IsExecutionEnabledUsingHeader(t *testing.T) {
 		{
 			name:    "non-empty header, empty payload",
 			payload: emptyPayload(),
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -399,7 +415,7 @@ func Test_IsExecutionEnabledUsingHeader(t *testing.T) {
 		},
 		{
 			name: "empty header, non-empty payload",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -413,7 +429,7 @@ func Test_IsExecutionEnabledUsingHeader(t *testing.T) {
 		},
 		{
 			name: "non-empty header, non-empty payload",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -437,9 +453,7 @@ func Test_IsExecutionEnabledUsingHeader(t *testing.T) {
 			blk.Block.Body.ExecutionPayload = tt.payload
 			body, err := consensusblocks.NewBeaconBlockBody(blk.Block.Body)
 			require.NoError(t, err)
-			header, err := consensusblocks.NewExecutionDataHeader(tt.header)
-			require.NoError(t, err)
-			got, err := blocks.IsExecutionEnabledUsingHeader(header, body)
+			got, err := blocks.IsExecutionEnabledUsingHeader(tt.header, body)
 			require.NoError(t, err)
 			if got != tt.want {
 				t.Errorf("IsExecutionEnabled() got = %v, want %v", got, tt.want)
@@ -452,13 +466,13 @@ func Test_ValidatePayloadWhenMergeCompletes(t *testing.T) {
 	tests := []struct {
 		name    string
 		payload *enginev1.ExecutionPayload
-		header  interfaces.ExecutionData
+		header  interfaces.ExecutionDataHeader
 		err     error
 	}{
 		{
 			name:    "merge incomplete",
 			payload: emptyPayload(),
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -472,7 +486,7 @@ func Test_ValidatePayloadWhenMergeCompletes(t *testing.T) {
 				p.ParentHash = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
 				return p
 			}(),
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -491,7 +505,7 @@ func Test_ValidatePayloadWhenMergeCompletes(t *testing.T) {
 				p.ParentHash = bytesutil.PadTo([]byte{'a'}, fieldparams.RootLength)
 				return p
 			}(),
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -639,12 +653,12 @@ func Test_ProcessPayloadHeader(t *testing.T) {
 	require.NoError(t, err)
 	tests := []struct {
 		name   string
-		header interfaces.ExecutionData
+		header interfaces.ExecutionDataHeader
 		err    error
 	}{
 		{
 			name: "process passes",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -658,7 +672,7 @@ func Test_ProcessPayloadHeader(t *testing.T) {
 		},
 		{
 			name: "incorrect prev randao",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -667,7 +681,7 @@ func Test_ProcessPayloadHeader(t *testing.T) {
 		},
 		{
 			name: "incorrect timestamp",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -714,12 +728,12 @@ func Test_ValidatePayloadHeader(t *testing.T) {
 	require.NoError(t, err)
 	tests := []struct {
 		name   string
-		header interfaces.ExecutionData
+		header interfaces.ExecutionDataHeader
 		err    error
 	}{
 		{
 			name: "process passes",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -733,7 +747,7 @@ func Test_ValidatePayloadHeader(t *testing.T) {
 		},
 		{
 			name: "incorrect prev randao",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -742,7 +756,7 @@ func Test_ValidatePayloadHeader(t *testing.T) {
 		},
 		{
 			name: "incorrect timestamp",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -775,12 +789,12 @@ func Test_ValidatePayloadHeaderWhenMergeCompletes(t *testing.T) {
 	tests := []struct {
 		name   string
 		state  state.BeaconState
-		header interfaces.ExecutionData
+		header interfaces.ExecutionDataHeader
 		err    error
 	}{
 		{
 			name: "no merge",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				return h
@@ -790,7 +804,7 @@ func Test_ValidatePayloadHeaderWhenMergeCompletes(t *testing.T) {
 		},
 		{
 			name: "process passes",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
@@ -805,7 +819,7 @@ func Test_ValidatePayloadHeaderWhenMergeCompletes(t *testing.T) {
 		},
 		{
 			name: "invalid block hash",
-			header: func() interfaces.ExecutionData {
+			header: func() interfaces.ExecutionDataHeader {
 				h, err := emptyPayloadHeader()
 				require.NoError(t, err)
 				prot, err := h.Proto()
