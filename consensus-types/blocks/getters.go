@@ -837,3 +837,21 @@ func (b *CoupledBeaconBlock) UnmarshalSSZ(buf []byte) error {
 	*b = *newBlock
 	return nil
 }
+
+// PbGenericBlock returns a generic signed beacon block.
+func (b *CoupledBeaconBlock) PbGenericBlock() (*eth.GenericSignedBeaconBlock, error) {
+	if b.sidecar == nil {
+		return b.block.PbGenericBlock()
+	}
+
+	eip4844Block, err := b.block.PbEip4844Block()
+	if err != nil {
+		return nil, err
+	}
+	return &eth.GenericSignedBeaconBlock{
+		Block: &eth.GenericSignedBeaconBlock_Eip4844{Eip4844: &eth.SignedBeaconBlockAndBlobsSidecar{
+			BeaconBlock:  eip4844Block,
+			BlobsSidecar: b.sidecar,
+		}},
+	}, nil
+}

@@ -18,6 +18,7 @@ type CoupledBeaconBlock interface {
 	BlobsSidecar() *ethpb.BlobsSidecar
 	IsNil() bool
 	Proto() (proto.Message, error)
+	PbGenericBlock() (*ethpb.GenericSignedBeaconBlock, error)
 	ssz.Marshaler
 	ssz.Unmarshaler
 }
