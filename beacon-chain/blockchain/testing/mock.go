@@ -246,13 +246,14 @@ func (s *ChainService) ReceiveBlockBatch(ctx context.Context, coupledBlks []inte
 }
 
 // ReceiveBlock mocks ReceiveBlock method in chain service.
-func (s *ChainService) ReceiveBlock(ctx context.Context, block interfaces.SignedBeaconBlock, _ [32]byte, sidecar *ethpb.BlobsSidecar) error {
+func (s *ChainService) ReceiveBlock(ctx context.Context, coupledBlock interfaces.CoupledBeaconBlock, _ [32]byte) error {
 	if s.ReceiveBlockMockErr != nil {
 		return s.ReceiveBlockMockErr
 	}
 	if s.State == nil {
 		return ErrNilState
 	}
+	block := coupledBlock.UnwrapBlock()
 	parentRoot := block.Block().ParentRoot()
 	if !bytes.Equal(s.Root, parentRoot[:]) {
 		return errors.Errorf("wanted %#x but got %#x", s.Root, block.Block().ParentRoot())
@@ -265,6 +266,7 @@ func (s *ChainService) ReceiveBlock(ctx context.Context, block interfaces.Signed
 	if err != nil {
 		return err
 	}
+	sidecar := coupledBlock.BlobsSidecar()
 	if sidecar != nil {
 		if bytesutil.ToBytes32(sidecar.BeaconBlockRoot) != signingRoot {
 			return errors.Errorf("sidecar root mismatch blk=%#x sidecar=%#x", signingRoot, sidecar.BeaconBlockRoot)

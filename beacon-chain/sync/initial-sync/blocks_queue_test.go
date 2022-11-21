@@ -20,7 +20,6 @@ import (
 	"github.com/prysmaticlabs/prysm/v3/container/slice"
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
 	eth "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
-	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v3/testing/assert"
 	"github.com/prysmaticlabs/prysm/v3/testing/require"
 	"github.com/prysmaticlabs/prysm/v3/testing/util"
@@ -260,7 +259,8 @@ func TestBlocksQueue_Loop(t *testing.T) {
 				highestExpectedSlot: tt.highestExpectedSlot,
 			})
 			assert.NoError(t, queue.start())
-			processBlock := func(block interfaces.SignedBeaconBlock, sidecar *ethpb.BlobsSidecar) error {
+			processBlock := func(coupledBlock interfaces.CoupledBeaconBlock) error {
+				block := coupledBlock.UnwrapBlock()
 				if !beaconDB.HasBlock(ctx, block.Block().ParentRoot()) {
 					return fmt.Errorf("%w: %#x", errParentDoesNotExist, block.Block().ParentRoot())
 				}
@@ -268,23 +268,16 @@ func TestBlocksQueue_Loop(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				return mc.ReceiveBlock(ctx, block, root, sidecar)
+				return mc.ReceiveBlock(ctx, coupledBlock, root)
 			}
 
 			var blocks []interfaces.SignedBeaconBlock
 			for data := range queue.fetchedData {
 				for _, block := range data.blocks {
-					var sidecar *ethpb.BlobsSidecar
-					for _, s := range data.sidecars {
-						if s.BeaconBlockSlot == block.Block().Slot() {
-							sidecar = s
-							break
-						}
-					}
-					if err := processBlock(block, sidecar); err != nil {
+					if err := processBlock(block); err != nil {
 						continue
 					}
-					blocks = append(blocks, block)
+					blocks = append(blocks, block.UnwrapBlock())
 				}
 			}
 
@@ -539,11 +532,15 @@ func TestBlocksQueue_onDataReceivedEvent(t *testing.T) {
 		handlerFn := queue.onDataReceivedEvent(ctx)
 		wsbCopy, err := wsb.Copy()
 		require.NoError(t, err)
+		csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
+		csbCopy, err := blocks.BuildCoupledBeaconBlock(wsbCopy, nil)
+		require.NoError(t, err)
 		response := &fetchRequestResponse{
 			pid: "abc",
-			blocks: []interfaces.SignedBeaconBlock{
-				wsb,
-				wsbCopy,
+			blocks: []interfaces.CoupledBeaconBlock{
+				csb,
+				csbCopy,
 			},
 		}
 		fsm := &stateMachine{
@@ -635,12 +632,14 @@ func TestBlocksQueue_onReadyToSendEvent(t *testing.T) {
 		})
 		wsb, err := blocks.NewSignedBeaconBlock(util.NewBeaconBlock())
 		require.NoError(t, err)
+		csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
 		queue.smm.addStateMachine(256)
 		queue.smm.addStateMachine(320)
 		queue.smm.machines[256].state = stateDataParsed
 		queue.smm.machines[256].pid = pidDataParsed
-		queue.smm.machines[256].blocks = []interfaces.SignedBeaconBlock{
-			wsb,
+		queue.smm.machines[256].blocks = []interfaces.CoupledBeaconBlock{
+			csb,
 		}
 
 		handlerFn := queue.onReadyToSendEvent(ctx)
@@ -662,6 +661,8 @@ func TestBlocksQueue_onReadyToSendEvent(t *testing.T) {
 		})
 		wsb, err := blocks.NewSignedBeaconBlock(util.NewBeaconBlock())
 		require.NoError(t, err)
+		csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
 		queue.smm.addStateMachine(128)
 		queue.smm.machines[128].state = stateNew
 		queue.smm.addStateMachine(192)
@@ -671,8 +672,8 @@ func TestBlocksQueue_onReadyToSendEvent(t *testing.T) {
 		queue.smm.addStateMachine(320)
 		queue.smm.machines[320].state = stateDataParsed
 		queue.smm.machines[320].pid = pidDataParsed
-		queue.smm.machines[320].blocks = []interfaces.SignedBeaconBlock{
-			wsb,
+		queue.smm.machines[320].blocks = []interfaces.CoupledBeaconBlock{
+			csb,
 		}
 
 		handlerFn := queue.onReadyToSendEvent(ctx)
@@ -695,13 +696,15 @@ func TestBlocksQueue_onReadyToSendEvent(t *testing.T) {
 		})
 		wsb, err := blocks.NewSignedBeaconBlock(util.NewBeaconBlock())
 		require.NoError(t, err)
+		csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
 		queue.smm.addStateMachine(256)
 		queue.smm.machines[256].state = stateSkipped
 		queue.smm.addStateMachine(320)
 		queue.smm.machines[320].state = stateDataParsed
 		queue.smm.machines[320].pid = pidDataParsed
-		queue.smm.machines[320].blocks = []interfaces.SignedBeaconBlock{
-			wsb,
+		queue.smm.machines[320].blocks = []interfaces.CoupledBeaconBlock{
+			csb,
 		}
 
 		handlerFn := queue.onReadyToSendEvent(ctx)
@@ -1225,14 +1228,14 @@ func TestBlocksQueue_stuckInUnfavourableFork(t *testing.T) {
 		require.Equal(t, stateDataParsed, firstFSM.state)
 		require.Equal(t, forkedPeer, firstFSM.pid)
 		require.Equal(t, 64, len(firstFSM.blocks))
-		require.Equal(t, forkedEpochStartSlot+1, firstFSM.blocks[0].Block().Slot())
+		require.Equal(t, forkedEpochStartSlot+1, firstFSM.blocks[0].UnwrapBlock().Block().Slot())
 
 		// Assert that forked data from chain2 is available (within 64 fetched blocks).
 		for i, blk := range chain2[forkedEpochStartSlot+1:] {
 			if i >= len(firstFSM.blocks) {
 				break
 			}
-			rootFromFSM, err := firstFSM.blocks[i].Block().HashTreeRoot()
+			rootFromFSM, err := firstFSM.blocks[i].UnwrapBlock().Block().HashTreeRoot()
 			require.NoError(t, err)
 			blkRoot, err := blk.Block.HashTreeRoot()
 			require.NoError(t, err)
@@ -1341,7 +1344,8 @@ func TestBlocksQueue_stuckWhenHeadIsSetToOrphanedBlock(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("test takes too long to complete")
 	case data := <-queue.fetchedData:
-		for _, blk := range data.blocks {
+		for _, coupledBlk := range data.blocks {
+			blk := coupledBlk.UnwrapBlock()
 			blkRoot, err := blk.Block().HashTreeRoot()
 			require.NoError(t, err)
 			if isProcessedBlock(ctx, blk, blkRoot) {

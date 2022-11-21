@@ -220,7 +220,9 @@ func connectPeer(t *testing.T, host *p2pt.TestP2P, datum *peerData, peerStatus *
 		for i := 0; i < len(ret); i++ {
 			wsb, err := blocks.NewSignedBeaconBlock(ret[i])
 			require.NoError(t, err)
-			assert.NoError(t, beaconsync.WriteBlockChunk(stream, mChain, p.Encoding(), wsb))
+			csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+			require.NoError(t, err)
+			assert.NoError(t, beaconsync.WriteBlockChunk(stream, mChain, p.Encoding(), csb))
 		}
 	})
 	p.SetStreamHandler("/eth2/beacon_chain/req/blobs_sidecars_by_range/1/ssz_snappy", func(stream network.Stream) {
@@ -299,7 +301,9 @@ func connectPeerHavingBlocks(
 			chain := &mock.ChainService{Genesis: time.Now(), ValidatorsRoot: [32]byte{}}
 			wsb, err := blocks.NewSignedBeaconBlock(blks[i])
 			require.NoError(t, err)
-			require.NoError(t, beaconsync.WriteBlockChunk(stream, chain, p.Encoding(), wsb))
+			csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+			require.NoError(t, err)
+			require.NoError(t, beaconsync.WriteBlockChunk(stream, chain, p.Encoding(), csb))
 		}
 	})
 

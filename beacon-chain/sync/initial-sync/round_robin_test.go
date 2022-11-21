@@ -15,7 +15,6 @@ import (
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
 	"github.com/prysmaticlabs/prysm/v3/container/slice"
 	eth "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
-	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v3/testing/assert"
 	"github.com/prysmaticlabs/prysm/v3/testing/require"
 	"github.com/prysmaticlabs/prysm/v3/testing/util"
@@ -365,9 +364,11 @@ func TestService_processBlock(t *testing.T) {
 		// Process block normally.
 		wsb, err := blocks.NewSignedBeaconBlock(blk1)
 		require.NoError(t, err)
-		err = s.processBlock(ctx, genesis, wsb, nil, func(
-			ctx context.Context, block interfaces.SignedBeaconBlock, blockRoot [32]byte, _ *ethpb.BlobsSidecar) error {
-			assert.NoError(t, s.cfg.Chain.ReceiveBlock(ctx, block, blockRoot, nil))
+		csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
+		err = s.processBlock(ctx, genesis, csb, func(
+			ctx context.Context, block interfaces.CoupledBeaconBlock, blockRoot [32]byte) error {
+			assert.NoError(t, s.cfg.Chain.ReceiveBlock(ctx, block, blockRoot))
 			return nil
 		})
 		assert.NoError(t, err)
@@ -375,8 +376,10 @@ func TestService_processBlock(t *testing.T) {
 		// Duplicate processing should trigger error.
 		wsb, err = blocks.NewSignedBeaconBlock(blk1)
 		require.NoError(t, err)
-		err = s.processBlock(ctx, genesis, wsb, nil, func(
-			ctx context.Context, block interfaces.SignedBeaconBlock, blockRoot [32]byte, _ *ethpb.BlobsSidecar) error {
+		csb, err = blocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
+		err = s.processBlock(ctx, genesis, csb, func(
+			ctx context.Context, block interfaces.CoupledBeaconBlock, blockRoot [32]byte) error {
 			return nil
 		})
 		assert.ErrorContains(t, errBlockAlreadyProcessed.Error(), err)
@@ -384,9 +387,11 @@ func TestService_processBlock(t *testing.T) {
 		// Continue normal processing, should proceed w/o errors.
 		wsb, err = blocks.NewSignedBeaconBlock(blk2)
 		require.NoError(t, err)
-		err = s.processBlock(ctx, genesis, wsb, nil, func(
-			ctx context.Context, block interfaces.SignedBeaconBlock, blockRoot [32]byte, _ *ethpb.BlobsSidecar) error {
-			assert.NoError(t, s.cfg.Chain.ReceiveBlock(ctx, block, blockRoot, nil))
+		csb, err = blocks.BuildCoupledBeaconBlock(wsb, nil)
+		require.NoError(t, err)
+		err = s.processBlock(ctx, genesis, csb, func(
+			ctx context.Context, block interfaces.CoupledBeaconBlock, blockRoot [32]byte) error {
+			assert.NoError(t, s.cfg.Chain.ReceiveBlock(ctx, block, blockRoot))
 			return nil
 		})
 		assert.NoError(t, err)
@@ -419,7 +424,7 @@ func TestService_processBlockBatch(t *testing.T) {
 	genesis := makeGenesisTime(32)
 
 	t.Run("process non-linear batch", func(t *testing.T) {
-		var batch []interfaces.SignedBeaconBlock
+		var batch []interfaces.CoupledBeaconBlock
 		currBlockRoot := genesisBlkRoot
 		for i := types.Slot(1); i < 10; i++ {
 			parentRoot := currBlockRoot
@@ -431,11 +436,13 @@ func TestService_processBlockBatch(t *testing.T) {
 			util.SaveBlock(t, context.Background(), beaconDB, blk1)
 			wsb, err := blocks.NewSignedBeaconBlock(blk1)
 			require.NoError(t, err)
-			batch = append(batch, wsb)
+			csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+			require.NoError(t, err)
+			batch = append(batch, csb)
 			currBlockRoot = blk1Root
 		}
 
-		var batch2 []interfaces.SignedBeaconBlock
+		var batch2 []interfaces.CoupledBeaconBlock
 		for i := types.Slot(10); i < 20; i++ {
 			parentRoot := currBlockRoot
 			blk1 := util.NewBeaconBlock()
@@ -446,26 +453,28 @@ func TestService_processBlockBatch(t *testing.T) {
 			util.SaveBlock(t, context.Background(), beaconDB, blk1)
 			wsb, err := blocks.NewSignedBeaconBlock(blk1)
 			require.NoError(t, err)
-			batch2 = append(batch2, wsb)
+			csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+			require.NoError(t, err)
+			batch2 = append(batch2, csb)
 			currBlockRoot = blk1Root
 		}
 
 		// Process block normally.
-		err = s.processBatchedBlocks(ctx, genesis, batch, nil, func(
-			ctx context.Context, blks []interfaces.SignedBeaconBlock, blockRoots [][32]byte, _ []*ethpb.BlobsSidecar) error {
-			assert.NoError(t, s.cfg.Chain.ReceiveBlockBatch(ctx, blks, blockRoots, nil))
+		err = s.processBatchedBlocks(ctx, genesis, batch, func(
+			ctx context.Context, blks []interfaces.CoupledBeaconBlock, blockRoots [][32]byte) error {
+			assert.NoError(t, s.cfg.Chain.ReceiveBlockBatch(ctx, blks, blockRoots))
 			return nil
 		})
 		assert.NoError(t, err)
 
 		// Duplicate processing should trigger error.
-		err = s.processBatchedBlocks(ctx, genesis, batch, nil, func(
-			ctx context.Context, blocks []interfaces.SignedBeaconBlock, blockRoots [][32]byte, _ []*ethpb.BlobsSidecar) error {
+		err = s.processBatchedBlocks(ctx, genesis, batch, func(
+			ctx context.Context, blks []interfaces.CoupledBeaconBlock, blockRoots [][32]byte) error {
 			return nil
 		})
 		assert.ErrorContains(t, "block is already processed", err)
 
-		var badBatch2 []interfaces.SignedBeaconBlock
+		var badBatch2 []interfaces.CoupledBeaconBlock
 		for i, b := range batch2 {
 			// create a non-linear batch
 			if i%3 == 0 && i != 0 {
@@ -475,17 +484,17 @@ func TestService_processBlockBatch(t *testing.T) {
 		}
 
 		// Bad batch should fail because it is non linear
-		err = s.processBatchedBlocks(ctx, genesis, badBatch2, nil, func(
-			ctx context.Context, blks []interfaces.SignedBeaconBlock, blockRoots [][32]byte, _ []*ethpb.BlobsSidecar) error {
+		err = s.processBatchedBlocks(ctx, genesis, badBatch2, func(
+			ctx context.Context, blks []interfaces.CoupledBeaconBlock, blockRoots [][32]byte) error {
 			return nil
 		})
 		expectedSubErr := "expected linear block list"
 		assert.ErrorContains(t, expectedSubErr, err)
 
 		// continue normal processing, should proceed w/o errors.
-		err = s.processBatchedBlocks(ctx, genesis, batch2, nil, func(
-			ctx context.Context, blks []interfaces.SignedBeaconBlock, blockRoots [][32]byte, _ []*ethpb.BlobsSidecar) error {
-			assert.NoError(t, s.cfg.Chain.ReceiveBlockBatch(ctx, blks, blockRoots, nil))
+		err = s.processBatchedBlocks(ctx, genesis, batch2, func(
+			ctx context.Context, blks []interfaces.CoupledBeaconBlock, blockRoots [][32]byte) error {
+			assert.NoError(t, s.cfg.Chain.ReceiveBlockBatch(ctx, blks, blockRoots))
 			return nil
 		})
 		assert.NoError(t, err)

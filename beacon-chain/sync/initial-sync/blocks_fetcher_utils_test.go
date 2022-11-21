@@ -280,14 +280,14 @@ func TestBlocksFetcher_findFork(t *testing.T) {
 	assert.Equal(t, 65, len(fork.blocks))
 	ind := forkSlot
 	for _, blk := range fork.blocks {
-		require.Equal(t, blk.Block().Slot(), chain2[ind].Block.Slot)
+		require.Equal(t, blk.UnwrapBlock().Block().Slot(), chain2[ind].Block.Slot)
 		ind++
 	}
 
 	// Process returned blocks and then attempt to extend chain (ensuring that parent block exists).
 	for _, blk := range fork.blocks {
-		require.NoError(t, beaconDB.SaveBlock(ctx, blk))
-		require.NoError(t, st.SetSlot(blk.Block().Slot()))
+		require.NoError(t, beaconDB.SaveBlock(ctx, blk.UnwrapBlock()))
+		require.NoError(t, st.SetSlot(blk.UnwrapBlock().Block().Slot()))
 	}
 	assert.Equal(t, forkSlot.Add(uint64(len(fork.blocks)-1)), mc.HeadSlot())
 	for i := forkSlot.Add(uint64(len(fork.blocks))); i < types.Slot(len(chain2)); i++ {
@@ -391,7 +391,7 @@ func TestBlocksFetcher_findForkWithPeer(t *testing.T) {
 		fork, err := fetcher.findForkWithPeer(ctx, p2, 64)
 		require.NoError(t, err)
 		require.Equal(t, 10, len(fork.blocks))
-		assert.Equal(t, forkedSlot, fork.blocks[0].Block().Slot(), "Expected slot %d to be ancestor", forkedSlot)
+		assert.Equal(t, forkedSlot, fork.blocks[0].UnwrapBlock().Block().Slot(), "Expected slot %d to be ancestor", forkedSlot)
 	})
 
 	t.Run("first block is diverging - no common ancestor", func(t *testing.T) {
@@ -414,7 +414,7 @@ func TestBlocksFetcher_findForkWithPeer(t *testing.T) {
 		fork, err := fetcher.findForkWithPeer(ctx, p2, 64)
 		require.NoError(t, err)
 		require.Equal(t, 64, len(fork.blocks))
-		assert.Equal(t, types.Slot(33), fork.blocks[0].Block().Slot())
+		assert.Equal(t, types.Slot(33), fork.blocks[0].UnwrapBlock().Block().Slot())
 	})
 }
 
@@ -462,7 +462,7 @@ func TestBlocksFetcher_findAncestor(t *testing.T) {
 		p2 := p2pt.NewTestP2P(t)
 		p2p.Connect(p2)
 
-		wsb, err := blocks.NewSignedBeaconBlock(knownBlocks[4])
+		wsb, err := blocks.NewCoupledBeaconBlock(knownBlocks[4])
 		require.NoError(t, err)
 		_, err = fetcher.findAncestor(ctx, p2.PeerID(), wsb)
 		assert.ErrorContains(t, "protocol not supported", err)
@@ -476,7 +476,7 @@ func TestBlocksFetcher_findAncestor(t *testing.T) {
 			assert.NoError(t, stream.Close())
 		})
 
-		wsb, err := blocks.NewSignedBeaconBlock(knownBlocks[4])
+		wsb, err := blocks.NewCoupledBeaconBlock(knownBlocks[4])
 		require.NoError(t, err)
 
 		fork, err := fetcher.findAncestor(ctx, p2.PeerID(), wsb)
