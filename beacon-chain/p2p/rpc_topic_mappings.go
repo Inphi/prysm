@@ -107,13 +107,14 @@ var protocolMapping = map[string]bool{
 // Maps all the protocol message names for the different rpc
 // topics.
 var messageMapping = map[string]bool{
-	StatusMessageName:               true,
-	GoodbyeMessageName:              true,
-	BeaconBlocksByRangeMessageName:  true,
-	BeaconBlocksByRootsMessageName:  true,
-	PingMessageName:                 true,
-	MetadataMessageName:             true,
-	BlobsSidecarsByRangeMessageName: true,
+	StatusMessageName:                             true,
+	GoodbyeMessageName:                            true,
+	BeaconBlocksByRangeMessageName:                true,
+	BeaconBlocksByRootsMessageName:                true,
+	PingMessageName:                               true,
+	MetadataMessageName:                           true,
+	BlobsSidecarsByRangeMessageName:               true,
+	BeaconBlocksAndBlobsSidecarByRootsMessageName: true,
 }
 
 // Maps all the RPC messages which are to updated in altair.

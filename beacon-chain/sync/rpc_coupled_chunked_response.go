@@ -4,12 +4,9 @@ import (
 	libp2pcore "github.com/libp2p/go-libp2p/core"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain"
-	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/signing"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/p2p"
-	"github.com/prysmaticlabs/prysm/v3/config/params"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
-	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
 	enginev1 "github.com/prysmaticlabs/prysm/v3/proto/engine/v1"
 	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 )
@@ -37,8 +34,9 @@ func readFirstChunkedCoupledBlock(stream libp2pcore.Stream, chain blockchain.For
 	if err != nil {
 		return nil, err
 	}
-	if err := isEip4844ForkDigest(rpcCtx, chain); err != nil {
-		return nil, err
+	// beacon_block_and_blobs_sidecar uses v1
+	if len(rpcCtx) != 0 {
+		return nil, errors.New("unexpected fork digest in stream")
 	}
 	blk, err := coupledBlockDataType()
 	if err != nil {
@@ -64,8 +62,9 @@ func readCoupledResponseChunk(stream libp2pcore.Stream, chain blockchain.ForkFet
 	if err != nil {
 		return nil, err
 	}
-	if err := isEip4844ForkDigest(rpcCtx, chain); err != nil {
-		return nil, err
+	// beacon_block_and_blobs_sidecar uses v1
+	if len(rpcCtx) != 0 {
+		return nil, errors.New("unexpected fork digest in stream")
 	}
 	blk, err := coupledBlockDataType()
 	if err != nil {
@@ -73,26 +72,6 @@ func readCoupledResponseChunk(stream libp2pcore.Stream, chain blockchain.ForkFet
 	}
 	err = p2p.Encoding().DecodeWithMaxLength(stream, blk)
 	return blk, err
-}
-
-func isEip4844ForkDigest(digest []byte, chain blockchain.ForkFetcher) error {
-	if len(digest) == 0 {
-		return errors.New("invalid digest for eip4844 fork version.")
-	}
-	if len(digest) != forkDigestLength {
-		return errors.Errorf("invalid digest returned, wanted a length of %d but received %d", forkDigestLength, len(digest))
-	}
-
-	vRoot := chain.GenesisValidatorsRoot()
-	ver := params.BeaconConfig().Eip4844ForkVersion
-	rDigest, err := signing.ComputeForkDigest(ver, vRoot[:])
-	if err != nil {
-		return err
-	}
-	if rDigest != bytesutil.ToBytes4(digest) {
-		return errors.New("digest mismatch")
-	}
-	return nil
 }
 
 func coupledBlockDataType() (interfaces.CoupledBeaconBlock, error) {

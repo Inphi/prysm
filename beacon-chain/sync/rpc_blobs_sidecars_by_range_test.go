@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kevinms/leakybucket-go"
-	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/libp2p/go-libp2p-core/protocol"
+	"github.com/libp2p/go-libp2p/core/network"
+	"github.com/libp2p/go-libp2p/core/protocol"
 	chainMock "github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain/testing"
 	mock "github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain/testing"
 	db "github.com/prysmaticlabs/prysm/v3/beacon-chain/db/testing"
@@ -19,19 +18,17 @@ import (
 	consensusblocks "github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
+	leakybucket "github.com/prysmaticlabs/prysm/v3/container/leaky-bucket"
 	ethpb "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v3/testing/assert"
 	"github.com/prysmaticlabs/prysm/v3/testing/require"
 	"github.com/prysmaticlabs/prysm/v3/testing/util"
 )
 
-func newBlobsSidecar() *ethpb.SignedBlobsSidecar {
-	return &ethpb.SignedBlobsSidecar{
-		Message: &ethpb.BlobsSidecar{
-			BeaconBlockRoot: make([]byte, fieldparams.RootLength),
-			AggregatedProof: make([]byte, 48),
-		},
-		Signature: make([]byte, fieldparams.BLSSignatureLength),
+func newBlobsSidecar() *ethpb.BlobsSidecar {
+	return &ethpb.BlobsSidecar{
+		BeaconBlockRoot: make([]byte, fieldparams.RootLength),
+		AggregatedProof: make([]byte, 48),
 	}
 }
 
@@ -61,16 +58,16 @@ func TestRPCBlobsSidecarsByRange_RPCHandlerReturnsBlobsSidecars(t *testing.T) {
 		sidecar := newBlobsSidecar()
 		root, err := blk.Block.HashTreeRoot()
 		require.NoError(t, err)
-		sidecar.Message.BeaconBlockRoot = root[:]
-		sidecar.Message.BeaconBlockSlot = blk.Block.Slot
-		require.NoError(t, d.SaveBlobsSidecar(context.Background(), sidecar.Message))
+		sidecar.BeaconBlockRoot = root[:]
+		sidecar.BeaconBlockSlot = blk.Block.Slot
+		require.NoError(t, d.SaveBlobsSidecar(context.Background(), sidecar))
 	}
 
 	// Start service with 160 as allowed blocks capacity (and almost zero capacity recovery).
 	r := &Service{cfg: &config{p2p: p1, beaconDB: d, chain: &chainMock.ChainService{}}, rateLimiter: newRateLimiter(p1)}
 	pcl := protocol.ID(p2p.RPCBlobsSidecarsByRangeTopicV1)
 	topic := string(pcl)
-	r.rateLimiter.limiterMap[topic] = leakybucket.NewCollector(1000, 10000, false)
+	r.rateLimiter.limiterMap[topic] = leakybucket.NewCollector(1000, 10000, time.Second, false)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	p2.BHost.SetStreamHandler(pcl, func(stream network.Stream) {
@@ -127,9 +124,9 @@ func TestSendRequest_SendBlobsSidecarsByRangeRequest(t *testing.T) {
 		sidecar := newBlobsSidecar()
 		root, err := blk.Block.HashTreeRoot()
 		require.NoError(t, err)
-		sidecar.Message.BeaconBlockRoot = root[:]
-		sidecar.Message.BeaconBlockSlot = blk.Block.Slot
-		knownSidecars = append(knownSidecars, sidecar.Message)
+		sidecar.BeaconBlockRoot = root[:]
+		sidecar.BeaconBlockSlot = blk.Block.Slot
+		knownSidecars = append(knownSidecars, sidecar)
 	}
 
 	blobsProvider := func(p2pProvider p2p.P2P) func(stream network.Stream) {

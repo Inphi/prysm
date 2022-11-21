@@ -81,7 +81,7 @@ func (r *BeaconBlockByRootsReq) UnmarshalSSZ(buf []byte) error {
 }
 
 // BeaconBlockAndBlobsSidecarByRootsReq specifies the block and blobs sidecar by roots request type.
-type BeaconBlockAndBlobsSidecarByRootsReq BeaconBlockByRootsReq
+type BeaconBlockAndBlobsSidecarByRootsReq = BeaconBlockByRootsReq
 
 // ErrorMessage describes the error message type.
 type ErrorMessage []byte

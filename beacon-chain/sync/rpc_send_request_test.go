@@ -86,7 +86,9 @@ func TestSendRequest_SendBeaconBlocksByRangeRequest(t *testing.T) {
 				chain := &mock.ChainService{Genesis: time.Now(), ValidatorsRoot: [32]byte{}}
 				wsb, err := blocks.NewSignedBeaconBlock(knownBlocks[i])
 				require.NoError(t, err)
-				err = WriteBlockChunk(stream, chain, p2pProvider.Encoding(), wsb)
+				csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+				require.NoError(t, err)
+				err = WriteBlockChunk(stream, chain, p2pProvider.Encoding(), csb)
 				if err != nil && err.Error() != network.ErrReset.Error() {
 					require.NoError(t, err)
 				}
@@ -240,7 +242,10 @@ func TestSendRequest_SendBeaconBlocksByRangeRequest(t *testing.T) {
 				}
 				chain := &mock.ChainService{Genesis: time.Now(), ValidatorsRoot: [32]byte{}}
 				wsb, err := blocks.NewSignedBeaconBlock(knownBlocks[i])
-				err = WriteBlockChunk(stream, chain, p2.Encoding(), wsb)
+				require.NoError(t, err)
+				csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+				require.NoError(t, err)
+				err = WriteBlockChunk(stream, chain, p2.Encoding(), csb)
 				if err != nil && err.Error() != network.ErrReset.Error() {
 					require.NoError(t, err)
 				}
@@ -285,7 +290,9 @@ func TestSendRequest_SendBeaconBlocksByRangeRequest(t *testing.T) {
 				chain := &mock.ChainService{Genesis: time.Now(), ValidatorsRoot: [32]byte{}}
 				wsb, err := blocks.NewSignedBeaconBlock(knownBlocks[i])
 				require.NoError(t, err)
-				err = WriteBlockChunk(stream, chain, p2.Encoding(), wsb)
+				csb, err := blocks.BuildCoupledBeaconBlock(wsb, nil)
+				require.NoError(t, err)
+				err = WriteBlockChunk(stream, chain, p2.Encoding(), csb)
 				if err != nil && err.Error() != network.ErrReset.Error() {
 					require.NoError(t, err)
 				}
@@ -490,5 +497,88 @@ func TestSendRequest_SendBeaconBlocksByRootRequest(t *testing.T) {
 		blocks, err := SendBeaconBlocksByRootRequest(ctx, chain, p1, p2.PeerID(), req, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(blocks))
+	})
+}
+
+func TestSendRequest_SendBeaconBlocksAndBlobsSidecarsByRootRequest(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pcl := fmt.Sprintf("%s/ssz_snappy", p2p.RPCBlocksAndBlobsSidecarsByRootTopicV1)
+
+	knownBlocks := make(map[[32]byte]*ethpb.SignedBeaconBlockAndBlobsSidecar)
+	knownRoots := make([][32]byte, 0)
+	for i := 0; i < 5; i++ {
+		blk := util.HydrateEIP4844SignedBeaconBlock(&ethpb.SignedBeaconBlockWithBlobKZGs{})
+		sidecar := &ethpb.BlobsSidecar{BeaconBlockRoot: make([]byte, 32), AggregatedProof: make([]byte, 48)}
+		cblk := &ethpb.SignedBeaconBlockAndBlobsSidecar{BeaconBlock: blk, BlobsSidecar: sidecar}
+		blkRoot, err := blk.Block.HashTreeRoot()
+		require.NoError(t, err)
+		knownRoots = append(knownRoots, blkRoot)
+		knownBlocks[knownRoots[len(knownRoots)-1]] = cblk
+	}
+
+	t.Run("stream error", func(t *testing.T) {
+		p1 := p2ptest.NewTestP2P(t)
+		// Bogus peer doesn't support a given protocol, so stream error is expected.
+		bogusPeer := p2ptest.NewTestP2P(t)
+		p1.Connect(bogusPeer)
+
+		req := &p2pTypes.BeaconBlockAndBlobsSidecarByRootsReq{}
+		chain := &mock.ChainService{Genesis: time.Now(), ValidatorsRoot: [32]byte{}}
+		_, err := SendBeaconBlocksAndBlobsSidecarsByRootRequest(ctx, chain, p1, bogusPeer.PeerID(), req, nil)
+		assert.ErrorContains(t, "protocol not supported", err)
+	})
+
+	knownBlocksProvider := func(p2pProvider p2p.P2P, processor CoupledBeaconBlockProcessor) func(stream network.Stream) {
+		return func(stream network.Stream) {
+			defer func() {
+				assert.NoError(t, stream.Close())
+			}()
+
+			req := new(p2pTypes.BeaconBlockByRootsReq)
+			assert.NoError(t, p2pProvider.Encoding().DecodeWithMaxLength(stream, req))
+			if len(*req) == 0 {
+				return
+			}
+			for _, root := range *req {
+				if blk, ok := knownBlocks[root]; ok {
+					if processor != nil {
+						wsb, err := blocks.NewSignedBeaconBlock(blk.BeaconBlock)
+						require.NoError(t, err)
+						csb, err := blocks.BuildCoupledBeaconBlock(wsb, blk.BlobsSidecar)
+						require.NoError(t, err)
+						if processorErr := processor(csb); processorErr != nil {
+							if errors.Is(processorErr, io.EOF) {
+								// Close stream, w/o any errors written.
+								return
+							}
+							_, err := stream.Write([]byte{0x01})
+							assert.NoError(t, err)
+							msg := p2pTypes.ErrorMessage(processorErr.Error())
+							_, err = p2pProvider.Encoding().EncodeWithMaxLength(stream, &msg)
+							assert.NoError(t, err)
+							return
+						}
+					}
+					_, err := stream.Write([]byte{0x00})
+					assert.NoError(t, err, "Could not write to stream")
+					_, err = p2pProvider.Encoding().EncodeWithMaxLength(stream, blk)
+					assert.NoError(t, err, "Could not send response back")
+				}
+			}
+		}
+	}
+
+	t.Run("no block processor", func(t *testing.T) {
+		p1 := p2ptest.NewTestP2P(t)
+		p2 := p2ptest.NewTestP2P(t)
+		p1.Connect(p2)
+		p2.SetStreamHandler(pcl, knownBlocksProvider(p2, nil))
+
+		req := &p2pTypes.BeaconBlockAndBlobsSidecarByRootsReq{knownRoots[0], knownRoots[1]}
+		chain := &mock.ChainService{Genesis: time.Now(), ValidatorsRoot: [32]byte{}}
+		blocks, err := SendBeaconBlocksAndBlobsSidecarsByRootRequest(ctx, chain, p1, p2.PeerID(), req, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(blocks))
 	})
 }

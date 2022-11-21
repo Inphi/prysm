@@ -73,7 +73,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				msg.Message.Contribution.BlockRoot = headRoot[:]
 				s.cfg.beaconDB = database
 				s.initCaches()
@@ -109,7 +109,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				msg.Message.Contribution.BlockRoot = headRoot[:]
 				s.cfg.beaconDB = database
 				s.initCaches()
@@ -145,7 +145,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				s.cfg.beaconDB = database
 				s.initCaches()
 				return s
@@ -180,7 +180,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				s.cfg.beaconDB = database
 				s.initCaches()
 				s.cfg.chain = &mockChain.ChainService{
@@ -223,7 +223,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				s.cfg.beaconDB = database
 				s.initCaches()
 				s.cfg.chain = &mockChain.ChainService{
@@ -266,7 +266,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				s.cfg.beaconDB = database
 				s.initCaches()
 				s.cfg.chain = &mockChain.ChainService{
@@ -310,7 +310,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				s.cfg.beaconDB = database
 				s.initCaches()
 				s.cfg.chain = &mockChain.ChainService{
@@ -372,7 +372,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				s.cfg.beaconDB = database
 				msg.Message.Contribution.BlockRoot = headRoot[:]
 				hState, err := database.State(context.Background(), headRoot)
@@ -437,7 +437,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				s.cfg.beaconDB = database
 				s.cfg.chain = chainService
 				msg.Message.Contribution.BlockRoot = headRoot[:]
@@ -517,7 +517,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				s.cfg.beaconDB = database
 				msg.Message.Contribution.BlockRoot = headRoot[:]
 				hState, err := database.State(context.Background(), headRoot)
@@ -599,7 +599,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				msg.Message.Contribution.BlockRoot = headRoot[:]
 				s.cfg.beaconDB = database
 				hState, err := database.State(context.Background(), headRoot)
@@ -683,7 +683,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				msg.Message.Contribution.BlockRoot = headRoot[:]
 				s.cfg.beaconDB = database
 				hState, err := database.State(context.Background(), headRoot)
@@ -779,7 +779,7 @@ func TestService_ValidateSyncContributionAndProof(t *testing.T) {
 				WithOperationNotifier(chainService.OperationNotifier()),
 			),
 			setupSvc: func(s *Service, msg *ethpb.SignedContributionAndProof) *Service {
-				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+				s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 				msg.Message.Contribution.BlockRoot = headRoot[:]
 				s.cfg.beaconDB = database
 				hState, err := database.State(context.Background(), headRoot)
@@ -926,7 +926,7 @@ func TestValidateSyncContributionAndProof(t *testing.T) {
 		WithOperationNotifier(chainService.OperationNotifier()),
 	)
 	go s.verifierRoutine()
-	s.cfg.stateGen = stategen.New(database, doublylinkedtree.New())
+	s.cfg.stateGen = stategen.New(database, doublylinkedtree.New(nil))
 	msg.Message.Contribution.BlockRoot = headRoot[:]
 	s.cfg.beaconDB = database
 	hState, err := database.State(context.Background(), headRoot)

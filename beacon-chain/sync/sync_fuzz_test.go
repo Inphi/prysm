@@ -52,7 +52,7 @@ func FuzzValidateBeaconBlockPubSub_Phase0(f *testing.F) {
 	msg.Signature, err = signing.ComputeDomainAndSign(beaconState, 0, msg.Block, params.BeaconConfig().DomainBeaconProposer, privKeys[proposerIdx])
 	require.NoError(f, err)
 
-	stateGen := stategen.New(db, doublylinkedtree.New())
+	stateGen := stategen.New(db, doublylinkedtree.New(nil))
 	chainService := &mock.ChainService{Genesis: time.Unix(time.Now().Unix()-int64(params.BeaconConfig().SecondsPerSlot), 0),
 		State: beaconState,
 		FinalizedCheckPoint: &ethpb.Checkpoint{
@@ -133,7 +133,7 @@ func FuzzValidateBeaconBlockPubSub_Altair(f *testing.F) {
 	msg.Signature, err = signing.ComputeDomainAndSign(beaconState, 0, msg.Block, params.BeaconConfig().DomainBeaconProposer, privKeys[proposerIdx])
 	require.NoError(f, err)
 
-	stateGen := stategen.New(db, doublylinkedtree.New())
+	stateGen := stategen.New(db, doublylinkedtree.New(nil))
 	chainService := &mock.ChainService{Genesis: time.Unix(time.Now().Unix()-int64(params.BeaconConfig().SecondsPerSlot), 0),
 		State: beaconState,
 		FinalizedCheckPoint: &ethpb.Checkpoint{
@@ -214,7 +214,7 @@ func FuzzValidateBeaconBlockPubSub_Bellatrix(f *testing.F) {
 	msg.Signature, err = signing.ComputeDomainAndSign(beaconState, 0, msg.Block, params.BeaconConfig().DomainBeaconProposer, privKeys[proposerIdx])
 	require.NoError(f, err)
 
-	stateGen := stategen.New(db, doublylinkedtree.New())
+	stateGen := stategen.New(db, doublylinkedtree.New(nil))
 	chainService := &mock.ChainService{Genesis: time.Unix(time.Now().Unix()-int64(params.BeaconConfig().SecondsPerSlot), 0),
 		State: beaconState,
 		FinalizedCheckPoint: &ethpb.Checkpoint{
