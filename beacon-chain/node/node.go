@@ -189,7 +189,6 @@ func New(cliCtx *cli.Context, opts ...Option) (*BeaconNode, error) {
 		}
 	}
 
-	beacon.forkChoicer = doublylinkedtree.New(NewDBDataAvailability(beacon.db))
 	depositAddress, err := execution.DepositContractAddress()
 	if err != nil {
 		return nil, err
@@ -198,6 +197,8 @@ func New(cliCtx *cli.Context, opts ...Option) (*BeaconNode, error) {
 	if err := beacon.startDB(cliCtx, depositAddress); err != nil {
 		return nil, err
 	}
+
+	beacon.forkChoicer = doublylinkedtree.New(NewDBDataAvailability(beacon.db))
 
 	log.Debugln("Starting Slashing DB")
 	if err := beacon.startSlasherDB(cliCtx); err != nil {
