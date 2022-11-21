@@ -581,4 +581,39 @@ func TestSendRequest_SendBeaconBlocksAndBlobsSidecarsByRootRequest(t *testing.T)
 		assert.NoError(t, err)
 		assert.Equal(t, 2, len(blocks))
 	})
+
+	t.Run("has block processor - no errors", func(t *testing.T) {
+		p1 := p2ptest.NewTestP2P(t)
+		p2 := p2ptest.NewTestP2P(t)
+		p1.Connect(p2)
+		p2.SetStreamHandler(pcl, knownBlocksProvider(p2, nil))
+
+		// No error from block processor.
+		req := &p2pTypes.BeaconBlockAndBlobsSidecarByRootsReq{knownRoots[0], knownRoots[1]}
+		blocksFromProcessor := make([]interfaces.CoupledBeaconBlock, 0)
+		chain := &mock.ChainService{Genesis: time.Now(), ValidatorsRoot: [32]byte{}}
+		blocks, err := SendBeaconBlocksAndBlobsSidecarsByRootRequest(ctx, chain, p1, p2.PeerID(), req, func(block interfaces.CoupledBeaconBlock) error {
+			blocksFromProcessor = append(blocksFromProcessor, block)
+			return nil
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(blocks))
+		assert.DeepEqual(t, blocks, blocksFromProcessor)
+	})
+
+	t.Run("has block processor - throw error", func(t *testing.T) {
+		p1 := p2ptest.NewTestP2P(t)
+		p2 := p2ptest.NewTestP2P(t)
+		p1.Connect(p2)
+		p2.SetStreamHandler(pcl, knownBlocksProvider(p2, nil))
+
+		// Send error from block processor.
+		req := &p2pTypes.BeaconBlockAndBlobsSidecarByRootsReq{knownRoots[0], knownRoots[1]}
+		errFromProcessor := errors.New("processor error")
+		chain := &mock.ChainService{Genesis: time.Now(), ValidatorsRoot: [32]byte{}}
+		_, err := SendBeaconBlocksAndBlobsSidecarsByRootRequest(ctx, chain, p1, p2.PeerID(), req, func(block interfaces.CoupledBeaconBlock) error {
+			return errFromProcessor
+		})
+		assert.ErrorContains(t, errFromProcessor.Error(), err)
+	})
 }

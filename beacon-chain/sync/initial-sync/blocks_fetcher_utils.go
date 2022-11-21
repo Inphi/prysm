@@ -275,7 +275,7 @@ func (f *blocksFetcher) findAncestor(ctx context.Context, pid peer.ID, b interfa
 		}
 		var coupledBlocks []interfaces.CoupledBeaconBlock
 		// Request block's parent.
-		if params.BeaconConfig().Eip4844ForkEpoch <= slots.ToEpoch(parentSlot) {
+		if slots.ToEpoch(parentSlot) < params.BeaconConfig().Eip4844ForkEpoch {
 			req := &p2pTypes.BeaconBlockByRootsReq{parentRoot}
 			blocks, err := f.requestBlocksByRoot(ctx, req, pid)
 			if err != nil {
