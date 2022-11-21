@@ -137,7 +137,7 @@ func TestServer_GetEip4844BeaconBlock_NoBlobKZGs(t *testing.T) {
 	eip4844Blk, ok := block.GetBlock().(*ethpb.GenericBeaconBlock_Eip4844)
 	require.Equal(t, true, ok)
 	require.LogsContain(t, hook, "Computed state root")
-	require.DeepEqual(t, emptyPayload, eip4844Blk.Eip4844.Body.ExecutionPayload) // Payload should equal.
+	require.DeepEqual(t, emptyPayload, eip4844Blk.Eip4844.BeaconBlock.Body.ExecutionPayload) // Payload should equal.
 }
 
 func TestServer_GetEip4844BeaconBlock_WithBlobKZGs(t *testing.T) {
@@ -275,9 +275,9 @@ func TestServer_GetEip4844BeaconBlock_WithBlobKZGs(t *testing.T) {
 	eip4844Blk, ok := block.GetBlock().(*ethpb.GenericBeaconBlock_Eip4844)
 	require.Equal(t, true, ok)
 	require.LogsContain(t, hook, "Computed state root")
-	require.DeepEqual(t, payload, eip4844Blk.Eip4844.Body.ExecutionPayload) // Payload should equal.
+	require.DeepEqual(t, payload, eip4844Blk.Eip4844.BeaconBlock.Body.ExecutionPayload) // Payload should equal.
 
-	root, err := eip4844Blk.Eip4844.HashTreeRoot()
+	root, err := eip4844Blk.Eip4844.BeaconBlock.HashTreeRoot()
 	require.NoError(t, err)
-	require.DeepEqual(t, root[:], block.Sidecar.BeaconBlockRoot)
+	require.DeepEqual(t, root[:], eip4844Blk.Eip4844.BlobsSidecar.BeaconBlockRoot)
 }

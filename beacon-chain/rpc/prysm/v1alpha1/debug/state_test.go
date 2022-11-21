@@ -35,7 +35,7 @@ func TestServer_GetBeaconState(t *testing.T) {
 	util.SaveBlock(t, ctx, db, b)
 	gRoot, err := b.Block.HashTreeRoot()
 	require.NoError(t, err)
-	gen := stategen.New(db, doublylinkedtree.New())
+	gen := stategen.New(db, doublylinkedtree.New(nil))
 	require.NoError(t, gen.SaveState(ctx, gRoot, st))
 	require.NoError(t, db.SaveState(ctx, st, gRoot))
 	bs := &Server{

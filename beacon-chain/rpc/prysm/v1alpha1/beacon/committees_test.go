@@ -43,7 +43,7 @@ func TestServer_ListBeaconCommittees_CurrentEpoch(t *testing.T) {
 	bs := &Server{
 		HeadFetcher:        m,
 		GenesisTimeFetcher: m,
-		StateGen:           stategen.New(db, doublylinkedtree.New()),
+		StateGen:           stategen.New(db, doublylinkedtree.New(nil)),
 	}
 	b := util.NewBeaconBlock()
 	util.SaveBlock(t, ctx, db, b)
@@ -116,7 +116,7 @@ func TestServer_ListBeaconCommittees_PreviousEpoch(t *testing.T) {
 	bs := &Server{
 		HeadFetcher:        m,
 		GenesisTimeFetcher: m,
-		StateGen:           stategen.New(db, doublylinkedtree.New()),
+		StateGen:           stategen.New(db, doublylinkedtree.New(nil)),
 	}
 	addDefaultReplayerBuilder(bs, db)
 
@@ -171,7 +171,7 @@ func TestRetrieveCommitteesForRoot(t *testing.T) {
 	bs := &Server{
 		HeadFetcher:        m,
 		GenesisTimeFetcher: m,
-		StateGen:           stategen.New(db, doublylinkedtree.New()),
+		StateGen:           stategen.New(db, doublylinkedtree.New(nil)),
 	}
 	b := util.NewBeaconBlock()
 	util.SaveBlock(t, ctx, db, b)
