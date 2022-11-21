@@ -501,7 +501,7 @@ func findBlobsSidecarForBlock(b interfaces.SignedBeaconBlock, sidecars []*ethpb.
 	if blocks.IsPreEIP4844Version(b.Version()) {
 		return nil, nil
 	}
-	blobKzgs, err := b.Block().Body().BlobKzgs()
+	blobKzgs, err := b.Block().Body().BlobKzgCommitments()
 	if err != nil {
 		log.WithError(err).Error("Could not get blob kzgs")
 		return nil, err
