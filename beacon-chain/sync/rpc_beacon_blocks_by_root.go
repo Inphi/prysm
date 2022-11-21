@@ -89,8 +89,8 @@ func (s *Service) blockRootRPCHandler(ctx context.Context, log *logrus.Entry, ms
 	if uint64(len(blockRoots)) > params.BeaconNetworkConfig().MaxRequestBlocks {
 		s.cfg.p2p.Peers().Scorers().BadResponsesScorer().Increment(stream.Conn().RemotePeer())
 		s.writeErrorResponseToStream(responseCodeInvalidRequest, "requested more than the max block limit", stream)
+		return errors.New("requested more than the max block limit")
 	}
-	return errors.New("requested more than the max block limit")
 	s.rateLimiter.add(stream, int64(len(blockRoots)))
 
 	for _, root := range blockRoots {

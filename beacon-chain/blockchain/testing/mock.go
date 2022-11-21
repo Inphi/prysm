@@ -200,11 +200,12 @@ func (s *ChainService) ReceiveBlockInitialSync(ctx context.Context, block interf
 }
 
 // ReceiveBlockBatch processes blocks in batches from initial-sync.
-func (s *ChainService) ReceiveBlockBatch(ctx context.Context, blks []interfaces.SignedBeaconBlock, _ [][32]byte, sidecars []*ethpb.BlobsSidecar) error {
+func (s *ChainService) ReceiveBlockBatch(ctx context.Context, coupledBlks []interfaces.CoupledBeaconBlock, _ [][32]byte) error {
 	if s.State == nil {
 		return ErrNilState
 	}
-	for _, b := range blks {
+	for _, coupledBlk := range coupledBlks {
+		b := coupledBlk.UnwrapBlock()
 		parentRoot := b.Block().ParentRoot()
 		if !bytes.Equal(s.Root, parentRoot[:]) {
 			return errors.Errorf("wanted %#x but got %#x", s.Root, b.Block().ParentRoot())
@@ -217,7 +218,7 @@ func (s *ChainService) ReceiveBlockBatch(ctx context.Context, blks []interfaces.
 		if err != nil {
 			return err
 		}
-		sidecar := findSidecarForBlock(b.Block(), signingRoot, sidecars)
+		sidecar := coupledBlk.BlobsSidecar()
 		if sidecar != nil {
 			if bytesutil.ToBytes32(sidecar.BeaconBlockRoot) != signingRoot {
 				return errors.Errorf("sidecar root mismatch blk=%#x sidecar=%#x", signingRoot, sidecar.BeaconBlockRoot)
