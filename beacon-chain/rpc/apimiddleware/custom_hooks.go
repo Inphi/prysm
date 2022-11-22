@@ -512,8 +512,9 @@ type bellatrixBlindedBlockResponseJson struct {
 }
 
 type eip4844BlockResponseJson struct {
-	Version string                                 `json:"version"`
-	Data    *SignedBeaconBlockEip4844ContainerJson `json:"data"`
+	Version             string                                 `json:"version"`
+	Data                *SignedBeaconBlockEip4844ContainerJson `json:"data"`
+	ExecutionOptimistic bool                                   `json:"execution_optimistic"`
 }
 
 type eip4844BlindedBlockResponseJson struct {
@@ -552,6 +553,15 @@ func serializeV2Block(response interface{}) (apimiddleware.RunDefault, []byte, a
 			Version: respContainer.Version,
 			Data: &SignedBeaconBlockBellatrixContainerJson{
 				Message:   respContainer.Data.BellatrixBlock,
+				Signature: respContainer.Data.Signature,
+			},
+			ExecutionOptimistic: respContainer.ExecutionOptimistic,
+		}
+	case strings.EqualFold(respContainer.Version, strings.ToLower(ethpbv2.Version_EIP4844.String())):
+		actualRespContainer = &eip4844BlockResponseJson{
+			Version: respContainer.Version,
+			Data: &SignedBeaconBlockEip4844ContainerJson{
+				Message:   respContainer.Data.Eip4844Block,
 				Signature: respContainer.Data.Signature,
 			},
 			ExecutionOptimistic: respContainer.ExecutionOptimistic,
