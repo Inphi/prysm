@@ -178,9 +178,12 @@ func NewBeaconBlock(i interface{}) (interfaces.BeaconBlock, error) {
 	case *eth.BeaconBlockCapella:
 		return initBlockFromProtoCapella(b)
 	case *eth.GenericBeaconBlock_Eip4844:
-		return initBlockAndBlobsSidecarFromProtoEip4844(b.Eip4844)
+		if b.Eip4844 == nil {
+			return nil, ErrNilObject
+		}
+		return initBlockFromProtoEip4844(b.Eip4844.BeaconBlock)
 	case *eth.BeaconBlockAndBlobsSidecar:
-		return initBlockAndBlobsSidecarFromProtoEip4844(b)
+		return initBlockFromProtoEip4844(b.BeaconBlock)
 	case *eth.BeaconBlockWithBlobKZGs:
 		return initBlockFromProtoEip4844(b)
 	default:

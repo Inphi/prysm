@@ -628,11 +628,6 @@ func initBlockFromProtoEip4844(pb *eth.BeaconBlockWithBlobKZGs) (*BeaconBlock, e
 	return b, nil
 }
 
-func initBlockAndBlobsSidecarFromProtoEip4844(pb *eth.BeaconBlockAndBlobsSidecar) (*BeaconBlock, error) {
-	// TODO(EIP-4844)
-	return nil, errors.New("unimplemented")
-}
-
 func initBlockBodyFromProtoPhase0(pb *eth.BeaconBlockBody) (*BeaconBlockBody, error) {
 	if pb == nil {
 		return nil, errNilBlockBody
