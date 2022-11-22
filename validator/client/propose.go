@@ -87,8 +87,7 @@ func (v *validator) ProposeBlock(ctx context.Context, slot types.Slot, pubKey [f
 	}
 
 	var blobsSidecar *ethpb.BlobsSidecar
-	switch b := b.Block.(type) {
-	case *ethpb.GenericBeaconBlock_Eip4844:
+	if b, ok := b.Block.(*ethpb.GenericBeaconBlock_Eip4844); ok {
 		blobsSidecar = b.Eip4844.BlobsSidecar
 	}
 

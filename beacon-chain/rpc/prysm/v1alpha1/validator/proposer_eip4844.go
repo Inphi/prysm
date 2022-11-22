@@ -108,7 +108,11 @@ func (vs *Server) assembleEip4844Block(ctx context.Context, altairBlk *ethpb.Bea
 		return nil, err
 	}
 
-	var sideCar *ethpb.BlobsSidecar
+	// Always set with defaults
+	sideCar := &ethpb.BlobsSidecar{
+		BeaconBlockRoot: make([]byte, 32),
+		AggregatedProof: make([]byte, 48),
+	}
 	if len(blobsBundle.Blobs) != 0 {
 		aggregatedProof, err := kzg.ComputeAggregateKZGProof(blob.BlobsSequenceImpl(blobsBundle.Blobs))
 		if err != nil {
