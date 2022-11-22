@@ -12,10 +12,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	gethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto/kzg"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
 	gcache "github.com/patrickmn/go-cache"
+	"github.com/protolambda/go-kzg/eth"
 	"github.com/protolambda/ztyp/codec"
 	"github.com/prysmaticlabs/prysm/v3/async/abool"
 	mock "github.com/prysmaticlabs/prysm/v3/beacon-chain/blockchain/testing"
@@ -1431,11 +1431,11 @@ func TestValidateBeaconBlockPubSub_ValidBlobKzgs(t *testing.T) {
 	msg.Block.Body.ExecutionPayload.ParentHash = bytesutil.PadTo([]byte("parentHash"), 32)
 
 	blob := gethTypes.Blob{[32]byte{0x10, 0x11}}
-	commitment, ok := kzg.BlobToKZGCommitment(blob)
+	commitment, ok := eth.BlobToKZGCommitment(blob)
 	require.Equal(t, ok, true)
 	sbt := gethTypes.SignedBlobTx{
 		Message: gethTypes.BlobTxMessage{
-			BlobVersionedHashes: []common.Hash{common.Hash(kzg.KZGToVersionedHash(commitment))},
+			BlobVersionedHashes: []common.Hash{common.Hash(eth.KZGToVersionedHash(commitment))},
 		},
 	}
 	var txbuf bytes.Buffer

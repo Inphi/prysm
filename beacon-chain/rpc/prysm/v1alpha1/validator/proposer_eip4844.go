@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto/kzg"
 	"github.com/pkg/errors"
+	"github.com/protolambda/go-kzg/eth"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blob"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/transition/interop"
 	"github.com/prysmaticlabs/prysm/v3/config/params"
@@ -110,7 +110,7 @@ func (vs *Server) assembleEip4844Block(ctx context.Context, altairBlk *ethpb.Bea
 
 	var sideCar *ethpb.BlobsSidecar
 	if len(blobsBundle.Blobs) != 0 {
-		aggregatedProof, err := kzg.ComputeAggregateKZGProof(blob.BlobsSequenceImpl(blobsBundle.Blobs))
+		aggregatedProof, err := eth.ComputeAggregateKZGProof(blob.BlobsSequenceImpl(blobsBundle.Blobs))
 		if err != nil {
 			return nil, fmt.Errorf("failed to compute aggregated kzg proof: %v", err)
 		}

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto/kzg"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/pkg/errors"
+	"github.com/protolambda/go-kzg/eth"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blocks"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/feed"
 	blockfeed "github.com/prysmaticlabs/prysm/v3/beacon-chain/core/feed/block"
@@ -293,15 +293,15 @@ func (s *Service) validateEIP4844BeaconBlock(ctx context.Context, parentState st
 	if err != nil {
 		return err
 	}
-	blobKzgsInput := make(kzg.KZGCommitmentSequenceImpl, len(blobKzgs))
+	blobKzgsInput := make(eth.KZGCommitmentSequenceImpl, len(blobKzgs))
 	for i := range blobKzgs {
-		blobKzgsInput[i] = kzg.KZGCommitment(bytesutil.ToBytes48(blobKzgs[i]))
+		blobKzgsInput[i] = eth.KZGCommitment(bytesutil.ToBytes48(blobKzgs[i]))
 	}
 	txs, err := payload.Transactions()
 	if err != nil {
 		return err
 	}
-	return kzg.VerifyKZGCommitmentsAgainstTransactions(txs, blobKzgsInput)
+	return eth.VerifyKZGCommitmentsAgainstTransactions(txs, blobKzgsInput)
 }
 
 // validateBellatrixBeaconBlock validates the block for the Bellatrix fork.

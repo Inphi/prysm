@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ethereum/go-ethereum/crypto/kzg"
 	"github.com/pkg/errors"
+	"github.com/protolambda/go-kzg/eth"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/altair"
 	b "github.com/prysmaticlabs/prysm/v3/beacon-chain/core/blocks"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/transition/interop"
@@ -275,16 +275,16 @@ func ProcessBlobKzgCommitments(ctx context.Context, state state.BeaconState, bod
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get blob kzgs from block")
 	}
-	blobKzgsInput := make(kzg.KZGCommitmentSequenceImpl, len(blobKzgCommitments))
+	blobKzgsInput := make(eth.KZGCommitmentSequenceImpl, len(blobKzgCommitments))
 	for i := range blobKzgCommitments {
-		blobKzgsInput[i] = kzg.KZGCommitment(bytesutil.ToBytes48(blobKzgCommitments[i]))
+		blobKzgsInput[i] = eth.KZGCommitment(bytesutil.ToBytes48(blobKzgCommitments[i]))
 	}
 
 	txs, err := payload.Transactions()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get transactions from payload")
 	}
-	if err := kzg.VerifyKZGCommitmentsAgainstTransactions(txs, blobKzgsInput); err != nil {
+	if err := eth.VerifyKZGCommitmentsAgainstTransactions(txs, blobKzgsInput); err != nil {
 		return nil, errors.Wrap(err, "could not verify kzgs against txs")
 	}
 	return state, nil
