@@ -57,6 +57,8 @@ func (s *Service) blobsSidecarsByRangeRPCHandler(ctx context.Context, msg interf
 			tracing.AnnotateError(span, err)
 			return err
 		}
+		// TODO: why are we storing empty blob sidecars even if a block doesn't require them!?
+		sidecars = filterEmptySidecars(sidecars)
 		if len(sidecars) == 0 {
 			continue
 		}
@@ -66,13 +68,13 @@ func (s *Service) blobsSidecarsByRangeRPCHandler(ctx context.Context, msg interf
 			outLen += estimateBlobsSidecarCost(sidecar)
 			SetStreamWriteDeadline(stream, defaultWriteDuration)
 			if chunkErr := WriteBlobsSidecarChunk(stream, s.cfg.chain, s.cfg.p2p.Encoding(), sidecar); chunkErr != nil {
-				log.WithError(chunkErr).Debug("Could not send a chunked response")
+				log.WithError(chunkErr).Debugf("Could not send a chunked response for slot %v", slot)
 				s.writeErrorResponseToStream(responseCodeServerError, p2ptypes.ErrGeneric.Error(), stream)
 				tracing.AnnotateError(span, chunkErr)
 				return chunkErr
 			}
 		}
-		numBlobs++
+		numBlobs += uint64(len(sidecars))
 		s.rateLimiter.add(stream, int64(outLen))
 
 		// Short-circuit immediately once we've sent the last blob.
@@ -104,6 +106,17 @@ func (s *Service) blobsSidecarsByRangeRPCHandler(ctx context.Context, msg interf
 
 	closeStream(stream, log)
 	return nil
+}
+
+func filterEmptySidecars(sidecars []*pb.BlobsSidecar) []*pb.BlobsSidecar {
+	var filtered []*pb.BlobsSidecar
+	for _, s := range sidecars {
+		if len(s.Blobs) == 0 {
+			continue
+		}
+		filtered = append(filtered, s)
+	}
+	return filtered
 }
 
 func estimateBlobsSidecarCost(sidecar *pb.BlobsSidecar) int {
