@@ -120,22 +120,26 @@ func (l *limiter) validateRawRpcRequest(stream network.Stream) error {
 	l.RLock()
 	defer l.RUnlock()
 
-	topic := rpcLimiterTopic
-
-	collector, err := l.retrieveCollector(topic)
-	if err != nil {
-		return err
-	}
-	key := stream.Conn().RemotePeer().String()
-	remaining := collector.Remaining(key)
-	// Treat each request as a minimum of 1.
-	amt := int64(1)
-	if amt > remaining {
-		l.p2p.Peers().Scorers().BadResponsesScorer().Increment(stream.Conn().RemotePeer())
-		writeErrorResponseToStream(responseCodeInvalidRequest, p2ptypes.ErrRateLimited.Error(), stream, l.p2p)
-		return p2ptypes.ErrRateLimited
-	}
 	return nil
+	// TODO: disdabled for testing
+	/*
+		topic := rpcLimiterTopic
+
+		collector, err := l.retrieveCollector(topic)
+		if err != nil {
+			return err
+		}
+		key := stream.Conn().RemotePeer().String()
+		remaining := collector.Remaining(key)
+		// Treat each request as a minimum of 1.
+		amt := int64(1)
+		if amt > remaining {
+			l.p2p.Peers().Scorers().BadResponsesScorer().Increment(stream.Conn().RemotePeer())
+			writeErrorResponseToStream(responseCodeInvalidRequest, p2ptypes.ErrRateLimited.Error(), stream, l.p2p)
+			return p2ptypes.ErrRateLimited
+		}
+		return nil
+	*/
 }
 
 // adds the cost to our leaky bucket for the topic.

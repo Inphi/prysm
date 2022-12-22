@@ -37,10 +37,19 @@ func (s *Service) blobsSidecarsByRangeRPCHandler(ctx context.Context, msg interf
 
 	var numBlobs uint64
 	maxRequestBlobsSidecars := params.BeaconNetworkConfig().MaxRequestBlobsSidecars
+
+	// TODO: remove. used for testing
+	// Ticker to stagger out large requests.
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
 	for slot := startSlot; slot < endSlot && numBlobs < maxRequestBlobsSidecars; slot = slot.Add(1) {
-		if err := s.rateLimiter.validateRequest(stream, uint64(avgSidecarBlobsTransferBytes)); err != nil {
-			return err
-		}
+		// TODO: disabled for now for testing
+		/*
+			if err := s.rateLimiter.validateRequest(stream, uint64(avgSidecarBlobsTransferBytes)); err != nil {
+				return err
+			}
+		*/
 
 		sidecars, err := s.cfg.beaconDB.BlobsSidecarsBySlot(ctx, slot)
 		if err != nil {
@@ -71,22 +80,26 @@ func (s *Service) blobsSidecarsByRangeRPCHandler(ctx context.Context, msg interf
 			break
 		}
 
-		key := stream.Conn().RemotePeer().String()
-		sidecarLimiter, err := s.rateLimiter.topicCollector(string(stream.Protocol()))
-		if err != nil {
-			return err
-		}
-		// Throttling - wait until we have enough tokens to send the next blobs
-		if sidecarLimiter.Remaining(key) < avgSidecarBlobsTransferBytes {
-			timer := time.NewTimer(sidecarLimiter.TillEmpty(key))
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return ctx.Err()
-			case <-timer.C:
-				timer.Stop()
+		<-ticker.C
+		// TODO: disabled for now for testing
+		/*
+			key := stream.Conn().RemotePeer().String()
+			sidecarLimiter, err := s.rateLimiter.topicCollector(string(stream.Protocol()))
+			if err != nil {
+				return err
 			}
-		}
+			// Throttling - wait until we have enough tokens to send the next blobs
+				if sidecarLimiter.Remaining(key) < avgSidecarBlobsTransferBytes {
+					timer := time.NewTimer(sidecarLimiter.TillEmpty(key))
+					select {
+					case <-ctx.Done():
+						timer.Stop()
+						return ctx.Err()
+					case <-timer.C:
+						timer.Stop()
+					}
+				}
+		*/
 	}
 
 	closeStream(stream, log)
