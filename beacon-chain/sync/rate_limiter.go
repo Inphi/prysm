@@ -8,7 +8,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/network"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/p2p"
-	p2ptypes "github.com/prysmaticlabs/prysm/v3/beacon-chain/p2p/types"
 	"github.com/prysmaticlabs/prysm/v3/cmd/beacon-chain/flags"
 	leakybucket "github.com/prysmaticlabs/prysm/v3/container/leaky-bucket"
 	"github.com/sirupsen/logrus"
@@ -95,24 +94,29 @@ func (l *limiter) validateRequest(stream network.Stream, amt uint64) error {
 	l.RLock()
 	defer l.RUnlock()
 
-	topic := string(stream.Protocol())
-
-	collector, err := l.retrieveCollector(topic)
-	if err != nil {
-		return err
-	}
-	key := stream.Conn().RemotePeer().String()
-	remaining := collector.Remaining(key)
-	// Treat each request as a minimum of 1.
-	if amt == 0 {
-		amt = 1
-	}
-	if amt > uint64(remaining) {
-		l.p2p.Peers().Scorers().BadResponsesScorer().Increment(stream.Conn().RemotePeer())
-		writeErrorResponseToStream(responseCodeInvalidRequest, p2ptypes.ErrRateLimited.Error(), stream, l.p2p)
-		return p2ptypes.ErrRateLimited
-	}
+	// TODO: disable rate limiting for the time being.
 	return nil
+
+	/*
+		topic := string(stream.Protocol())
+
+		collector, err := l.retrieveCollector(topic)
+		if err != nil {
+			return err
+		}
+		key := stream.Conn().RemotePeer().String()
+		remaining := collector.Remaining(key)
+		// Treat each request as a minimum of 1.
+		if amt == 0 {
+			amt = 1
+		}
+		if amt > uint64(remaining) {
+			l.p2p.Peers().Scorers().BadResponsesScorer().Increment(stream.Conn().RemotePeer())
+			writeErrorResponseToStream(responseCodeInvalidRequest, p2ptypes.ErrRateLimited.Error(), stream, l.p2p)
+			return p2ptypes.ErrRateLimited
+		}
+		return nil
+	*/
 }
 
 // This is used to validate all incoming rpc streams from external peers.
