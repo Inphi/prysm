@@ -162,19 +162,35 @@ func (s *Service) processFetchedDataRegSync(
 		blkSlot := blk.Block().Slot()
 		if slots.WithinDataAvailabilityBound(uint64(s.cfg.Chain.GenesisTime().Unix()), slots.ToEpoch(blkSlot)) {
 			blob, ok := blobs[blkSlot]
-			if !ok {
+			if !ok && blockReferencesBlob(blk.Block()) {
 				log.Errorf("No blob found for block %d", blkSlot)
+				continue
+			}
+			if !ok {
+				blkRoot, err := blk.Block().HashTreeRoot()
+				if err != nil {
+					log.WithError(err).Error("Failed to get block root")
+					continue
+				}
+				blob, err = constructEmptyBlobsSidecar(blkRoot, blk.Block())
+				if err != nil {
+					log.WithError(err).Error("Failed to construct empty blobs sidecar")
+					continue
+				}
 			}
 			kzgs, err := blk.Block().Body().BlobKzgCommitments()
 			if err != nil {
 				log.WithError(err).Error("Failed to get kzg commitments")
+				continue
 			}
 			blkRoot, err := blk.Block().HashTreeRoot()
 			if err != nil {
 				log.WithError(err).Error("Failed to get block root")
+				continue
 			}
 			if err := blobs2.ValidateBlobsSidecar(blkSlot, blkRoot, kzgs, blob); err != nil {
 				log.WithError(err).Error("Failed to validate blobs sidecar")
+				continue
 			}
 		}
 		if err := s.processBlock(ctx, genesis, blk, blockReceiver); err != nil {
