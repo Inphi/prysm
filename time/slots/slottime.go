@@ -186,6 +186,9 @@ func WithinDataAvailabilityBound(genesisTimeSec uint64, epoch types.Epoch) bool 
 	currentSlot := types.Slot((now - genesisTimeSec) / params.BeaconConfig().SecondsPerSlot)
 	currentEpoch := ToEpoch(currentSlot)
 
+	if currentEpoch < params.BeaconNetworkConfig().MinEpochsForBlobsSidecarsRequest {
+		return true
+	}
 	if currentEpoch-params.BeaconNetworkConfig().MinEpochsForBlobsSidecarsRequest >= epoch {
 		return true
 	}
