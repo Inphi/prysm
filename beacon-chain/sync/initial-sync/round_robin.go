@@ -9,7 +9,9 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/paulbellamy/ratecounter"
+	ethkzg "github.com/protolambda/go-kzg/eth"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/transition"
+	"github.com/prysmaticlabs/prysm/v3/consensus-types/blobs"
 	blobs2 "github.com/prysmaticlabs/prysm/v3/consensus-types/blobs"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
@@ -320,8 +322,14 @@ func (s *Service) processBatchedBlocks(ctx context.Context, genesis time.Time,
 		blkSlot := b.Block().Slot()
 		if slots.WithinDataAvailabilityBound(uint64(s.cfg.Chain.GenesisTime().Unix()), slots.ToEpoch(blkSlot)) {
 			blob, ok := blobs[b.Block().Slot()]
-			if !ok {
+			if !ok && blockReferencesBlob(b.Block()) {
 				return fmt.Errorf("missing sidecar blob for slot %d", b.Block().Slot())
+			}
+			if !ok {
+				blob, err = constructEmptyBlobsSidecar(blkRoot, b.Block())
+				if err != nil {
+					return fmt.Errorf("failed to construct empty blobs sidecar: %w", err)
+				}
 			}
 			kzgs, err := b.Block().Body().BlobKzgCommitments()
 			if err != nil {
@@ -371,4 +379,23 @@ func (s *Service) isProcessedBlock(ctx context.Context, blk interfaces.SignedBea
 		return true
 	}
 	return false
+}
+
+func blockReferencesBlob(b interfaces.BeaconBlock) bool {
+	if kzgs, err := b.Body().BlobKzgCommitments(); err == nil {
+		return len(kzgs) != 0
+	}
+	return false
+}
+
+func constructEmptyBlobsSidecar(root [32]byte, b interfaces.BeaconBlock) (*eth.BlobsSidecar, error) {
+	aggregatedProof, err := ethkzg.ComputeAggregateKZGProof(blobs.BlobsSequenceImpl(nil))
+	if err != nil {
+		return nil, err
+	}
+	return &eth.BlobsSidecar{
+		BeaconBlockSlot: b.Slot(),
+		BeaconBlockRoot: root[:],
+		AggregatedProof: aggregatedProof[:],
+	}, nil
 }

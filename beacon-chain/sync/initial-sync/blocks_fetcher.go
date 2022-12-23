@@ -276,6 +276,9 @@ func (f *blocksFetcher) handleRequest(ctx context.Context, start types.Slot, cou
 	}
 
 	response.blocks, response.pid, response.err = f.fetchBlocksFromPeer(ctx, start, count, peers)
+	if response.err != nil {
+		return response
+	}
 	var blobStart types.Slot
 	var blobCount uint64
 	for i := types.Slot(0); i < types.Slot(count); i++ {
