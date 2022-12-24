@@ -142,6 +142,7 @@ func SendBlocksAndSidecarsByRootRequest(
 	}
 	stream, err := p2pProvider.Send(ctx, req, topic, pid)
 	if err != nil {
+		log.WithError(err).WithField("pid", pid).Trace("failed to send BlocksAndSidecarsByRootRequest")
 		return nil, err
 	}
 	defer closeStream(stream, log)
@@ -165,6 +166,7 @@ func SendBlocksAndSidecarsByRootRequest(
 			break
 		}
 		if err != nil {
+			log.WithError(err).WithField("pid", pid).Trace("failed to read BlocksAndSidecarsByRoot reply")
 			return nil, err
 		}
 

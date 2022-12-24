@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/protolambda/go-kzg/eth"
+	ethkzg "github.com/protolambda/go-kzg/eth"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
 	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
 	v1 "github.com/prysmaticlabs/prysm/v3/proto/engine/v1"
@@ -61,4 +62,17 @@ func ValidateBlobsSidecar(slot types.Slot, root [32]byte, commitments [][]byte, 
 		"aggregatedProof": fmt.Sprintf("%#x", bytesutil.Trunc(sidecar.AggregatedProof)),
 	}).Info("Validating blobs")
 	return eth.ValidateBlobsSidecar(eth.Slot(slot), root, commitmentSequenceImpl(commitments), kzgSidecar)
+}
+
+// BuildEmptyBlobsSidecar builds an empty blobs sidecar for a given slot and root.
+func BuildEmptyBlobsSidecar(root [32]byte, slot types.Slot) (*ethpb.BlobsSidecar, error) {
+	aggregatedProof, err := ethkzg.ComputeAggregateKZGProof(BlobsSequenceImpl(nil))
+	if err != nil {
+		return nil, err
+	}
+	return &ethpb.BlobsSidecar{
+		BeaconBlockSlot: slot,
+		BeaconBlockRoot: root[:],
+		AggregatedProof: aggregatedProof[:],
+	}, nil
 }

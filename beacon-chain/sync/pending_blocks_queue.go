@@ -26,6 +26,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/trailofbits/go-mutexasserts"
 	"go.opencensus.io/trace"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var processPendingBlocksPeriod = slots.DivideSlotBy(3 /* times per slot */)
@@ -214,10 +215,24 @@ func (s *Service) processPendingBlocks(ctx context.Context) error {
 			s.setSeenBlockIndexSlot(b.Block().Slot(), b.Block().ProposerIndex())
 
 			// Broadcasting the block again once a node is able to process it.
-			pb, err := b.Proto()
-			if err != nil {
-				log.WithError(err).Debug("Could not get protobuf block")
+			var pb protoreflect.ProtoMessage
+			if slots.ToEpoch(slot) >= params.BeaconConfig().EIP4844ForkEpoch {
+				var blkPb *ethpb.SignedBeaconBlock4844
+				if blkPb, err = b.Pb4844Block(); err == nil {
+					pb = &ethpb.SignedBeaconBlockAndBlobsSidecar{
+						BeaconBlock:  blkPb,
+						BlobsSidecar: blobs[i],
+					}
+				} else {
+					log.WithError(err).Debug("Could not get 4844 block")
+				}
 			} else {
+				pb, err = b.Proto()
+				if err != nil {
+					log.WithError(err).Debug("Could not get protobuf block")
+				}
+			}
+			if err == nil {
 				if err := s.cfg.p2p.Broadcast(ctx, pb); err != nil {
 					log.WithError(err).Debug("Could not broadcast block")
 				}
@@ -294,10 +309,10 @@ func (s *Service) sendBatchRootRequest(ctx context.Context, roots [][32]byte, ra
 		}
 		if slots.ToEpoch(s.cfg.chain.CurrentSlot()) >= params.BeaconConfig().EIP4844ForkEpoch {
 			if err := s.sendBlocksAndSidecarsRequest(ctx, &req, pid); err != nil {
-				log.WithError(err).Error("Could not send recent block and blob request, falling back to block only")
-				if err := s.sendRecentBeaconBlocksRequest(ctx, &req, pid); err != nil {
+				log.WithError(err).Error("Could not send recent block and blob request, falling back to block by root and blobs sidecars by range")
+				if err := s.sendRecentDecoupledBlocksAndSidecars(ctx, &req, pid); err != nil {
 					tracing.AnnotateError(span, err)
-					log.WithError(err).Error("Could not send recent block request after 4844 fork epoch")
+					log.WithError(err).Error("Could not send recent block by root and blob sidecars by range requests after 4844 fork epoch")
 				}
 			}
 		} else {

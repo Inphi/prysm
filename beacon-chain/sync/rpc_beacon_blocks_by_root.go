@@ -2,14 +2,18 @@ package sync
 
 import (
 	"context"
+	"fmt"
 
 	libp2pcore "github.com/libp2p/go-libp2p/core"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/p2p/types"
 	"github.com/prysmaticlabs/prysm/v3/config/params"
+	"github.com/prysmaticlabs/prysm/v3/consensus-types/blobs"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/blocks"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
+	"github.com/prysmaticlabs/prysm/v3/encoding/bytesutil"
+	eth "github.com/prysmaticlabs/prysm/v3/proto/prysm/v1alpha1"
 )
 
 // sendRecentBeaconBlocksRequest sends a recent beacon blocks request to a peer to get
@@ -30,6 +34,57 @@ func (s *Service) sendRecentBeaconBlocksRequest(ctx context.Context, blockRoots 
 		}
 		return nil
 	})
+	return err
+}
+
+// sendRecentDecoupledBlocksAndSidecars sends both beacon blocks and blobs and range requests to a peer to get
+// those corresponding blocks from that peer.
+func (s *Service) sendRecentDecoupledBlocksAndSidecars(ctx context.Context, blockRoots *types.BeaconBlockByRootsReq, id peer.ID) error {
+	ctx, cancel := context.WithTimeout(ctx, respTimeout)
+	defer cancel()
+
+	blocks, err := SendBeaconBlocksByRootRequest(ctx, s.cfg.chain, s.cfg.p2p, id, blockRoots, nil)
+	if err != nil {
+		return fmt.Errorf("unable to send beacon blocks by root request: %v", err)
+	}
+	if len(blocks) == 0 {
+		return nil
+	}
+
+	// TODO(4844): we assume there are no more than MAX_REQUEST_BLOBS_SIDECARS recent block roots
+	req := &eth.BlobsSidecarsByRangeRequest{
+		StartSlot: blocks[0].Block().Slot(),
+		Count:     uint64(len(blocks)),
+	}
+	sidecars := make(map[[32]byte]*eth.BlobsSidecar)
+	_, err = SendBlobsSidecarsByRangeRequest(ctx, s.cfg.chain, s.cfg.p2p, id, req, func(sidecar *eth.BlobsSidecar) error {
+		sidecars[bytesutil.ToBytes32(sidecar.BeaconBlockRoot)] = sidecar
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("unable to send blobs sidecars by range request: %v", err)
+	}
+
+	for _, blk := range blocks {
+		blkRoot, err := blk.Block().HashTreeRoot()
+		if err != nil {
+			return err
+		}
+		blobSidecar, ok := sidecars[blkRoot]
+		if !ok {
+			blobSidecar, err = blobs.BuildEmptyBlobsSidecar(blkRoot, blk.Block().Slot())
+			if err != nil {
+				return err
+			}
+		}
+
+		s.pendingQueueLock.Lock()
+		defer s.pendingQueueLock.Unlock()
+		if err := s.insertBlkAndBlobToQueue(blk.Block().Slot(), blk, blkRoot, blobSidecar); err != nil {
+			return err
+		}
+	}
+
 	return err
 }
 

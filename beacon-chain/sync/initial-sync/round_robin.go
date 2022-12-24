@@ -9,9 +9,7 @@ import (
 
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/paulbellamy/ratecounter"
-	ethkzg "github.com/protolambda/go-kzg/eth"
 	"github.com/prysmaticlabs/prysm/v3/beacon-chain/core/transition"
-	"github.com/prysmaticlabs/prysm/v3/consensus-types/blobs"
 	blobs2 "github.com/prysmaticlabs/prysm/v3/consensus-types/blobs"
 	"github.com/prysmaticlabs/prysm/v3/consensus-types/interfaces"
 	types "github.com/prysmaticlabs/prysm/v3/consensus-types/primitives"
@@ -172,7 +170,7 @@ func (s *Service) processFetchedDataRegSync(
 					log.WithError(err).Error("Failed to get block root")
 					continue
 				}
-				blob, err = constructEmptyBlobsSidecar(blkRoot, blk.Block())
+				blob, err = blobs2.BuildEmptyBlobsSidecar(blkRoot, blk.Block().Slot())
 				if err != nil {
 					log.WithError(err).Error("Failed to construct empty blobs sidecar")
 					continue
@@ -342,7 +340,7 @@ func (s *Service) processBatchedBlocks(ctx context.Context, genesis time.Time,
 				return fmt.Errorf("missing sidecar blob for slot %d", b.Block().Slot())
 			}
 			if !ok {
-				blob, err = constructEmptyBlobsSidecar(blkRoot, b.Block())
+				blob, err = blobs2.BuildEmptyBlobsSidecar(blkRoot, b.Block().Slot())
 				if err != nil {
 					return fmt.Errorf("failed to construct empty blobs sidecar: %w", err)
 				}
@@ -402,16 +400,4 @@ func blockReferencesBlob(b interfaces.BeaconBlock) bool {
 		return len(kzgs) != 0
 	}
 	return false
-}
-
-func constructEmptyBlobsSidecar(root [32]byte, b interfaces.BeaconBlock) (*eth.BlobsSidecar, error) {
-	aggregatedProof, err := ethkzg.ComputeAggregateKZGProof(blobs.BlobsSequenceImpl(nil))
-	if err != nil {
-		return nil, err
-	}
-	return &eth.BlobsSidecar{
-		BeaconBlockSlot: b.Slot(),
-		BeaconBlockRoot: root[:],
-		AggregatedProof: aggregatedProof[:],
-	}, nil
 }
