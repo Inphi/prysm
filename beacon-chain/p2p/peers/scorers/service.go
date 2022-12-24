@@ -175,7 +175,9 @@ func (s *Service) ValidationError(pid peer.ID) error {
 
 // loop handles background tasks.
 func (s *Service) loop(ctx context.Context) {
-	decayBadResponsesStats := time.NewTicker(s.scorers.badResponsesScorer.Params().DecayInterval)
+	//decayBadResponsesStats := time.NewTicker(s.scorers.badResponsesScorer.Params().DecayInterval)
+	// TODO(4844): overriden for EIP-4844 devnet
+	decayBadResponsesStats := time.NewTicker(time.Second * 1)
 	defer decayBadResponsesStats.Stop()
 	decayBlockProviderStats := time.NewTicker(s.scorers.blockProviderScorer.Params().DecayInterval)
 	defer decayBlockProviderStats.Stop()
